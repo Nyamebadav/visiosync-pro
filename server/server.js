@@ -235,11 +235,14 @@ app.post("/api/export/video", rateLimit, async (req, res) => {
         await fs.writeFile(audioPath, Buffer.from(await ar.arrayBuffer()));
       }
       await execFileAsync(ffmpegStatic, [
+        "-stream_loop", "-1",          // loop video clips indefinitely
         "-f", "concat", "-safe", "0", "-i", concatPath,
         "-i", audioPath,
         "-map", "0:v", "-map", "1:a",
-        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-        "-shortest", "-y", outputPath,
+        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+        "-c:a", "aac", "-b:a", "192k",
+        "-shortest",                   // stop when audio ends (e.g. 4m30s)
+        "-y", outputPath,
       ]);
     } else {
       await execFileAsync(ffmpegStatic, [
