@@ -264,6 +264,12 @@ app.post("/api/export/video", rateLimit, async (req, res) => {
   }
 });
 
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/landing.html"));
+});
+app.get("/app", (_req, res) => {
+  res.sendFile(path.join(__dirname, "../public/index.html"));
+});
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
