@@ -161,7 +161,9 @@ app.post("/api/xai/videos/start", rateLimit, async (req, res) => {
       if (!imgResp.ok) throw new Error("Failed to fetch image for video generation.");
       const imgBuf = await imgResp.arrayBuffer();
       const mimeType = imgResp.headers.get("content-type") || "image/jpeg";
-      body.image = "data:" + mimeType + ";base64," + Buffer.from(imgBuf).toString("base64");
+      const dataUri = "data:" + mimeType + ";base64," + Buffer.from(imgBuf).toString("base64");
+      body.image = { url: dataUri };
+      body.model = "grok-imagine-video-1.5";
     }
     const response = await fetch("https://api.x.ai/v1/videos/generations", {
       method: "POST",
