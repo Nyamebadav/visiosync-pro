@@ -170,6 +170,8 @@ function App(){
   const [scenes,setScenes]=useState([]);
   const [blueprint,setBlueprint]=useState('');
   const [wave,setWave]=useState(bars(70));
+  const [videoExporting,setVideoExporting]=useState(false);
+  const [videoStatus,setVideoStatus]=useState('');
   const [status,setStatus]=useState('Ready');
   const [statusType,setStatusType]=useState('');
   const [generating,setGenerating]=useState(false);
@@ -288,6 +290,59 @@ function App(){
       await generateImage(scenes[i].prompt,i);
     }
     setImgStatus('✓ All scenes generated');
+  };
+  const exportVideo=async()=>{
+    if(!scenes.length){setVideoStatus('Generate scenes first.');return;}
+    setVideoExporting(true);setVideoStatus('Starting video generation…');
+    const requestIds=[];
+    for(let i=0;i<scenes.length;i++){
+      setVideoStatus('Starting clip '+(i+1)+'/'+scenes.length+'…');
+      try{
+        const r=await fetch(proxy+'/api/xai/videos/start',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({prompt:scenes[i].prompt,image_url:scenes[i].imageUrl||undefined,duration:6,aspect_ratio:'16:9',resolution:'720p'})
+        });
+        const d=await r.json();
+        if(!r.ok)throw new Error(d.error||'start failed');
+        requestIds.push({idx:i,requestId:d.request_id});
+      }catch(e){setVideoStatus('Clip '+(i+1)+' error: '+e.message);setVideoExporting(false);return;}
+    }
+    const clipUrls=new Array(scenes.length).fill(null);
+    let pending=[...requestIds];
+    let tries=0;
+    while(pending.length>0&&tries<60){
+      tries++;
+      setVideoStatus('Rendering '+pending.length+' clip'+(pending.length>1?'s':'')+'… ('+(tries*8)+'s)');
+      await new Promise(r=>setTimeout(r,8000));
+      const next=[];
+      for(const c of pending){
+        try{
+          const r=await fetch(proxy+'/api/xai/videos/'+c.requestId);
+          const d=await r.json();
+          if(d.status==='done'){clipUrls[c.idx]=d.video&&d.video.url?d.video.url:d.url;}
+          else if(d.status==='failed'||d.status==='expired'){throw new Error('Clip '+(c.idx+1)+' '+d.status);}
+          else{next.push(c);}
+        }catch(e){setVideoStatus('Error: '+e.message);setVideoExporting(false);return;}
+      }
+      pending=next;
+    }
+    if(pending.length>0){setVideoStatus('Timed out waiting for clips.');setVideoExporting(false);return;}
+    setVideoStatus('Stitching final MP4…');
+    try{
+      const stitchResp=await fetch(proxy+'/api/export/video',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({clips:clipUrls.map(function(url){return {url:url};})})
+      });
+      if(!stitchResp.ok){const e=await stitchResp.json();throw new Error(e.error||'stitch failed');}
+      const blob=await stitchResp.blob();
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='visiosync-music-video.mp4';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+      setVideoStatus('✓ MP4 downloaded!');
+    }catch(e){setVideoStatus('Stitch error: '+e.message);}
+    setVideoExporting(false);
   };
 
   const useLyricPrompt=()=>{
@@ -533,6 +588,13 @@ function App(){
           <div className="caption" style={{color:captionColor}}>{currentCaption}</div>
         </div>
         <p style={{color:'#666',fontSize:12}}>Auto-advances every 4 seconds. Scenes cycle with Ken Burns motion and live captions.</p>
+        <div style={{marginTop:18,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <button className="btn-gold" disabled={videoExporting||!scenes.some(function(s){return s.imageUrl;})} onClick={exportVideo} style={{display:"flex",alignItems:"center",gap:8}}>
+            {videoExporting&&React.createElement("span",{className:"spinner"})}
+            {videoExporting?videoStatus:"🎬 Export as MP4"}
+          </button>
+          {!videoExporting&&videoStatus&&React.createElement("span",{className:"status-pill"+(videoStatus.startsWith("✓")?" ok":videoStatus.toLowerCase().includes("error")||videoStatus.includes("failed")?" err":"")},videoStatus)}
+        </div>
       </div>}
 
     </main>
