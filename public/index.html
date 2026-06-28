@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#07070f"/>
+<meta name="description" content="VisioSync Pro — AI Music Video Creator. Turn one idea into lyrics, scenes, and AI-generated visuals."/>
+<title>VisioSync Pro — Medase Unitelle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap"/>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#07070f;color:#eee;font-family:'Inter',Arial,sans-serif;min-height:100vh}
+
+/* ── Top bar ── */
+.top{padding:16px 24px;background:linear-gradient(135deg,#0a0a1a,#14142f);border-bottom:1px solid rgba(245,200,66,.2);position:sticky;top:0;z-index:99;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.brand{font-size:22px;font-weight:900;letter-spacing:3px;background:linear-gradient(135deg,#f5c842,#00f5d4,#ff4d6d);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.tagline{color:#9a9aad;font-size:12px;margin-top:3px}
+.status-pill{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:5px 14px;color:#bbb;font-size:12px;white-space:nowrap}
+.status-pill.ok{border-color:rgba(0,245,212,.4);color:#00f5d4}
+.status-pill.err{border-color:rgba(255,77,109,.4);color:#ff4d6d}
+
+/* ── Layout ── */
+main{max-width:1280px;margin:0 auto;padding:24px 20px}
+
+/* ── Nav tabs ── */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.tab{padding:9px 18px;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;border:1px solid rgba(255,255,255,.14);background:transparent;color:#aaa;transition:all .2s}
+.tab:hover{border-color:rgba(245,200,66,.4);color:#f5c842}
+.tab.active{background:linear-gradient(135deg,rgba(245,200,66,.15),rgba(0,245,212,.08));border-color:rgba(245,200,66,.5);color:#f5c842}
+
+/* ── Cards ── */
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.11);border-radius:20px;padding:22px;margin-bottom:18px}
+.card h2{font-size:17px;font-weight:900;margin-bottom:14px;color:#eee}
+.card h3{font-size:14px;font-weight:700;margin:14px 0 8px;color:#ccc}
+
+/* ── Grid ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+
+/* ── Form controls ── */
+label{display:block;margin:10px 0 5px;color:#888;font-size:11px;text-transform:uppercase;letter-spacing:1.5px}
+textarea,input[type=text],input[type=number],select{width:100%;background:#0d0d22;border:1px solid rgba(255,255,255,.16);border-radius:12px;color:#eee;padding:11px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+textarea:focus,input:focus,select:focus{border-color:rgba(245,200,66,.5)}
+select option{background:#0d0d22}
+
+/* ── Buttons ── */
+button{font-family:inherit;cursor:pointer;border-radius:12px;font-weight:900;font-size:13px;padding:11px 18px;transition:all .2s;border:none}
+.btn-gold{background:linear-gradient(135deg,#f5c842,#d4920a);color:#080812}
+.btn-gold:hover{filter:brightness(1.1)}
+.btn-gold:disabled{opacity:.45;cursor:not-allowed}
+.btn-cyan{background:rgba(0,245,212,.08);border:1px solid rgba(0,245,212,.4);color:#00f5d4}
+.btn-cyan:hover{background:rgba(0,245,212,.16)}
+.btn-cyan:disabled{opacity:.45;cursor:not-allowed}
+.btn-ghost{background:transparent;border:1px solid rgba(245,200,66,.4);color:#f5c842}
+.btn-ghost:hover{background:rgba(245,200,66,.08)}
+.btn-red{background:rgba(255,77,109,.08);border:1px solid rgba(255,77,109,.4);color:#ff4d6d}
+.btn-red:hover{background:rgba(255,77,109,.16)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* ── Warning banner ── */
+.warning{border-left:4px solid #f5c842;padding:12px 16px;background:rgba(245,200,66,.06);border-radius:10px;font-size:13px;color:#ccc;margin-bottom:16px}
+.warning code{color:#00f5d4;font-size:12px}
+
+/* ── Waveform ── */
+.track{height:72px;background:#080816;border-radius:14px;border:1px solid rgba(255,255,255,.09);display:flex;align-items:flex-end;gap:3px;padding:10px;overflow:hidden}
+.bar{flex:1;background:linear-gradient(to top,#f5c842,#00f5d4);border-radius:3px;opacity:.75;transition:height .3s}
+
+/* ── Scene cards ── */
+.scene-card{border:1px solid rgba(255,255,255,.11);border-radius:18px;padding:14px;background:rgba(0,0,0,.22);display:flex;flex-direction:column;gap:10px}
+.scene-visual{min-height:160px;border-radius:14px;background:linear-gradient(135deg,#241333,#0b3d45);position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+.scene-visual::before{content:"";position:absolute;inset:-40%;background:radial-gradient(circle at 30% 30%,rgba(245,200,66,.45),transparent 28%),radial-gradient(circle at 70% 55%,rgba(0,245,212,.35),transparent 24%),radial-gradient(circle at 50% 85%,rgba(255,77,109,.3),transparent 28%);filter:blur(2px);animation:float 8s ease-in-out infinite alternate}
+.scene-visual span{position:absolute;left:12px;right:12px;bottom:12px;font-weight:900;font-size:13px;text-shadow:0 3px 14px #000}
+.scene-visual img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+/* ── Timeline ── */
+.timeline{background:#080816;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:14px;overflow-x:auto;white-space:nowrap;margin-bottom:16px}
+.timeline-block{display:inline-block;min-width:140px;height:50px;margin:4px;border-radius:12px;padding:10px;background:linear-gradient(135deg,rgba(245,200,66,.85),rgba(0,245,212,.75));color:#071015;font-weight:900;font-size:11px;vertical-align:top}
+
+/* ── Upload zones ── */
+.dropzone{border:2px dashed rgba(245,200,66,.4);border-radius:18px;padding:28px;text-align:center;background:rgba(245,200,66,.04);cursor:pointer;transition:all .2s}
+.dropzone:hover{background:rgba(245,200,66,.09);border-color:#f5c842}
+.dropzone h2{font-size:16px;margin-bottom:6px}
+.audio-box{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:rgba(0,0,0,.25);padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.1);margin-top:14px}
+.asset-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px;margin-top:14px}
+.asset{border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:10px;background:rgba(0,0,0,.25)}
+.asset img,.asset video{width:100%;height:120px;object-fit:cover;border-radius:10px;background:#000}
+
+/* ── Preview board ── */
+.preview{aspect-ratio:16/9;background:#000;border-radius:20px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.14);margin-bottom:12px}
+.preview img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.preview-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#555;font-size:14px}
+.caption{position:absolute;left:8%;right:8%;bottom:10%;font-size:clamp(16px,3.5vw,42px);font-weight:900;text-align:center;text-shadow:0 5px 20px #000;color:#fff}
+.ken{animation:ken 9s ease-in-out infinite alternate}
+
+/* ── Image gallery ── */
+.img-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.img-card{border:1px solid rgba(255,255,255,.1);border-radius:16px;overflow:hidden;background:rgba(0,0,0,.3)}
+.img-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.img-card-foot{padding:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* ── Animations ── */
+@keyframes float{from{transform:translateX(-4%) rotate(0deg)}to{transform:translateX(4%) rotate(8deg)}}
+@keyframes ken{from{transform:scale(1)}to{transform:scale(1.11) translateX(-2%)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.15);border-top-color:#f5c842;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+
+/* ── Responsive ── */
+@media(max-width:600px){
+  .top{padding:12px 16px}
+  .brand{font-size:18px;letter-spacing:2px}
+  main{padding:16px 12px}
+  .btn-row{gap:6px}
+  button{padding:9px 13px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const MOODS=['Triumphant','Romantic','Spiritual','Joyful','Intense','Nostalgic','Futuristic','Melancholic'];
+const GENRES=['Afrobeats','Highlife','Hip-Hop','Gospel','Dancehall','R&B','Cinematic','Afropop'];
+const RATIOS=['16:9','9:16','1:1','4:5','3:2'];
+const CAPTION_STYLES=['Gold Glow','White Cinema','Neon Cyan','Afro Royal','Minimal'];
+const TABS=[
+  {id:'creator',label:'✦ Creator'},
+  {id:'uploads',label:'＋ Add Music / Clips'},
+  {id:'images',label:'◈ Image Studio'},
+  {id:'scenes',label:'▣ Scenes'},
+  {id:'preview',label:'▶ Preview Board'},
+];
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function bars(n=44){return Array.from({length:n},(_,i)=>20+Math.sin(i*.7)*45+Math.random()*35)}
+
+// Fallback generators (used if Claude API is unavailable)
+function makeLyricsFallback(topic,genre,mood){
+  const t=topic||'my dream';
+  return [`${t}, we rise with the morning light`,`Heartbeat dancing through the city night`,`${genre} fire in my soul tonight`,`${mood} spirit taking flight`,`Step by step, we build the sound`,`Golden visions spinning round`,`If the world says no, we go again`,`Future calling through the rain`,`Oh oh, let the rhythm show`,`Oh oh, let the people know`,`From one idea to a shining screen`,`VisioSync turns the dream unseen`].join('\n');
+}
+function makeScenesFallback(topic,genre,mood){
+  const palette='Afrofuturist Ghanaian color palette, cinematic lighting, professional music video still, sharp focus, high detail';
+  return [{title:'Opening sunrise hero shot',fx:'zoom'},{title:'Dancers enter — slow motion',fx:'cut'},{title:'Close-up emotional lyric moment',fx:'flash'},{title:'Golden city night performance',fx:'slide-left'},{title:'Abstract cosmic beat flash',fx:'glow'},{title:'Crowd celebration wide shot',fx:'blur-in'},{title:'AI dream portal transition',fx:'speed-ramp'},{title:'Final logo / title reveal',fx:'fade'}].map(s=>({...s,prompt:`${mood} ${genre} music video scene — ${s.title} — about "${topic||'a dream'}", ${palette}`,duration:4,imageUrl:''}));
+}
+
+// Call the Claude proxy on the server
+async function callClaude(proxy, type, topic, genre, mood){
+  const r = await fetch(`${proxy}/api/claude/generate`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({type, topic, genre, mood}),
+  });
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error || `Claude API error (HTTP ${r.status})`);
+  return data.text || '';
+}
+
+// ── Main App ───────────────────────────────────────────────────────────────
+function App(){
+  const [tab,setTab]=useState('creator');
+  const [topic,setTopic]=useState('Jollof rhythm celebration in Accra');
+  const [genre,setGenre]=useState('Afrobeats');
+  const [mood,setMood]=useState('Triumphant');
+  const [lyrics,setLyrics]=useState('');
+  const [scenes,setScenes]=useState([]);
+  const [blueprint,setBlueprint]=useState('');
+  const [wave,setWave]=useState(bars(70));
+  const [status,setStatus]=useState('Ready');
+  const [statusType,setStatusType]=useState('');
+  const [generating,setGenerating]=useState(false);
+
+  // Image studio
+  const proxy=typeof location!=='undefined'&&location.origin.startsWith('http')
+    ?location.origin:'http://localhost:8787';
+  const [ratio,setRatio]=useState('16:9');
+  const [imgCount,setImgCount]=useState(1);
+  const [imgPrompt,setImgPrompt]=useState('');
+  const [imgStatus,setImgStatus]=useState('Ready');
+  const [images,setImages]=useState([]);
+  const [busy,setBusy]=useState(false);
+
+  // Uploads
+  const audioRef=useRef(null);
+  const clipRef=useRef(null);
+  const [audio,setAudio]=useState(null);
+  const [audioUrl,setAudioUrl]=useState('');
+  const [clips,setClips]=useState([]);
+
+  // Preview
+  const [shot,setShot]=useState(0);
+  const [capStyle,setCapStyle]=useState('Gold Glow');
+
+  // Auto-advance preview
+  useEffect(()=>{
+    if(!scenes.length) return;
+    const id=setInterval(()=>setShot(s=>(s+1)%scenes.length),4000);
+    return ()=>clearInterval(id);
+  },[scenes.length]);
+
+  // Revoke object URLs on unmount
+  useEffect(()=>()=>{
+    if(audioUrl) URL.revokeObjectURL(audioUrl);
+    clips.forEach(c=>c.url&&URL.revokeObjectURL(c.url));
+  },[]);
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+  const setStatusMsg=(msg,type='')=>{setStatus(msg);setStatusType(type)};
+
+  const createAll=async()=>{
+    setGenerating(true);
+    setStatusMsg('Claude is writing your lyrics…');
+    try{
+      // 1. Lyrics
+      let lyricsText='';
+      try{
+        lyricsText=await callClaude(proxy,'lyrics',topic,genre,mood);
+      }catch(e){
+        lyricsText=makeLyricsFallback(topic,genre,mood);
+        setStatusMsg('Claude unavailable — used template lyrics. Check ANTHROPIC_API_KEY.','err');
+      }
+      setLyrics(lyricsText);
+
+      // 2. Scenes
+      setStatusMsg('Claude is planning your scenes…');
+      let scenesData=[];
+      try{
+        const raw=await callClaude(proxy,'scenes',topic,genre,mood);
+        scenesData=JSON.parse(raw);
+        if(!Array.isArray(scenesData)) throw new Error('not array');
+        scenesData=scenesData.map(s=>({...s,imageUrl:''}));
+      }catch(e){
+        scenesData=makeScenesFallback(topic,genre,mood);
+      }
+      setScenes(scenesData);
+      setImgPrompt(scenesData[0]?.prompt||'');
+
+      // 3. Music blueprint
+      setStatusMsg('Claude is writing your music blueprint…');
+      try{
+        const bp=await callClaude(proxy,'blueprint',topic,genre,mood);
+        setBlueprint(bp);
+      }catch(e){
+        setBlueprint('');
+      }
+
+      setWave(bars(90));
+      setStatusMsg('✓ Lyrics, scenes & blueprint ready. Open Image Studio for visuals.','ok');
+    }catch(e){
+      setStatusMsg(`Error: ${e.message}`,'err');
+    }
+    setGenerating(false);
+  };
+
+  const generateImage=async(prompt=imgPrompt,sceneIndex=null)=>{
+    if(!prompt.trim()){setImgStatus('Enter a prompt first.');return;}
+    setBusy(true);
+    setImgStatus('Calling Grok Imagine…');
+    try{
+      const r=await fetch(`${proxy}/api/xai/images`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({prompt,n:Number(imgCount)||1,aspect_ratio:ratio,model:'grok-2-image-1212',response_format:'url'}),
+      });
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(data.error||`HTTP ${r.status}`);
+      const out=(data.data||[])
+        .map((x,i)=>({url:x.url||x.b64_json||'',prompt,created:new Date().toISOString(),label:`Image ${images.length+i+1}`}))
+        .filter(x=>x.url);
+      setImages(prev=>[...out,...prev]);
+      if(sceneIndex!==null&&out[0]?.url){
+        setScenes(prev=>prev.map((s,i)=>i===sceneIndex?{...s,imageUrl:out[0].url}:s));
+      }
+      setImgStatus(`✓ ${out.length} image${out.length===1?'':'s'} generated`);
+    }catch(e){
+      setImgStatus(`Error: ${e.message}`);
+    }
+    setBusy(false);
+  };
+
+  const generateAllScenes=async()=>{
+    for(let i=0;i<scenes.length;i++){
+      setImgStatus(`Generating scene ${i+1} of ${scenes.length}…`);
+      await generateImage(scenes[i].prompt,i);
+    }
+    setImgStatus('✓ All scenes generated');
+  };
+
+  const useLyricPrompt=()=>{
+    const first=(lyrics||'').split('\n').filter(Boolean).slice(0,4).join(', ');
+    setImgPrompt(`${mood} ${genre} music video artwork inspired by: ${first||topic}. Afrofuturist cinematic lighting, Ghanaian color palette, high detail, professional quality`);
+    setTab('images');
+  };
+
+  const saveProject=()=>{
+    localStorage.setItem('visiosync_project',JSON.stringify({topic,genre,mood,lyrics,blueprint,scenes,images,wave}));
+    setStatusMsg('Project saved ✓','ok');
+  };
+
+  const loadProject=()=>{
+    const raw=localStorage.getItem('visiosync_project');
+    if(!raw){setStatusMsg('No saved project found','err');return;}
+    const p=JSON.parse(raw);
+    setTopic(p.topic||topic);setGenre(p.genre||genre);setMood(p.mood||mood);
+    setLyrics(p.lyrics||'');setBlueprint(p.blueprint||'');setScenes(p.scenes||[]);setImages(p.images||[]);setWave(p.wave||wave);
+    setStatusMsg('Project loaded ✓','ok');
+  };
+
+  const exportPack=(name='visiosync-pack.json',data=null)=>{
+    const payload=data||{topic,genre,mood,lyrics,scenes,images,created:new Date().toISOString()};
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+    a.download=name;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+    setStatusMsg('Pack exported ✓','ok');
+  };
+
+  // Upload handlers
+  const handleAudio=files=>{
+    const f=files?.[0];if(!f)return;
+    if(audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudio({name:f.name,size:f.size});
+    setAudioUrl(URL.createObjectURL(f));
+    setStatusMsg('Music added ✓','ok');
+  };
+  const handleClips=files=>{
+    const arr=Array.from(files||[]).filter(f=>f.type.startsWith('image/')||f.type.startsWith('video/'));
+    if(!arr.length){setStatusMsg('No image/video files selected','err');return;}
+    const next=arr.map(f=>({name:f.name,url:URL.createObjectURL(f),kind:f.type.startsWith('video/')?'video':'image'}));
+    setClips(p=>[...p,...next]);
+    setStatusMsg(`${arr.length} clip${arr.length===1?'':'s'} added ✓`,'ok');
+  };
+  const removeClip=idx=>setClips(p=>{const n=[...p];const[gone]=n.splice(idx,1);if(gone?.url)URL.revokeObjectURL(gone.url);return n;});
+
+  // Derived
+  const captionLines=(lyrics||'').split('\n').filter(Boolean);
+  const currentScene=scenes[shot]||{};
+  const currentCaption=captionLines[shot%Math.max(1,captionLines.length)]||topic;
+  const captionColor=capStyle==='Neon Cyan'?'#00f5d4':capStyle==='Gold Glow'?'#f5c842':'#fff';
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  return <>
+    {/* Top bar */}
+    <div className="top">
+      <div>
+        <div className="brand">VISIOSYNC PRO</div>
+        <div className="tagline">Prompt → Lyrics → Scenes → AI Images → Export · medaseunitelle.com</div>
+      </div>
+      <span className={`status-pill${statusType?' '+statusType:''}`}>{status}</span>
+    </div>
+
+    <main>
+      {/* Security note */}
+      <div className="warning">
+        <b>Security:</b> Your xAI key stays in <code>server/.env</code> — never exposed to the browser. All image requests go through your secure proxy.
+      </div>
+
+      {/* Nav */}
+      <div className="tabs">
+        {TABS.map(t=><button key={t.id} className={`tab${tab===t.id?' active':''}`} onClick={()=>setTab(t.id)}>{t.label}</button>)}
+        <button className="tab" onClick={saveProject}>💾 Save</button>
+        <button className="tab" onClick={loadProject}>↺ Load</button>
+        <button className="tab" onClick={()=>exportPack()}>⤓ Export</button>
+      </div>
+
+      {/* ── CREATOR TAB ── */}
+      {tab==='creator'&&<>
+        <div className="card">
+          <h2>One-Idea Creator</h2>
+          <label>Your video / song idea</label>
+          <textarea rows="3" value={topic} onChange={e=>setTopic(e.target.value)} placeholder="Example: A joyful Afrobeats graduation celebration in Accra"/>
+          <div className="grid" style={{marginTop:12}}>
+            <div><label>Genre</label><select value={genre} onChange={e=>setGenre(e.target.value)}>{GENRES.map(x=><option key={x}>{x}</option>)}</select></div>
+            <div><label>Mood</label><select value={mood} onChange={e=>setMood(e.target.value)}>{MOODS.map(x=><option key={x}>{x}</option>)}</select></div>
+          </div>
+          <div className="btn-row">
+            <button className="btn-gold" onClick={createAll} disabled={generating}>
+              {generating?<><span className="spinner"/>  Claude is thinking…</>:'✦ Generate with Claude AI'}
+            </button>
+            <button className="btn-cyan" onClick={useLyricPrompt} disabled={!lyrics||generating}>Create Image Prompt From Lyrics</button>
+            <button className="btn-ghost" onClick={()=>exportPack('visiosync-storyboard.json',{topic,genre,mood,shots:scenes})} disabled={!scenes.length}>Export Storyboard</button>
+          </div>
+        </div>
+
+        <div className="grid">
+          <div className="card">
+            <h2>AI Lyrics Draft</h2>
+            <textarea rows="14" value={lyrics} onChange={e=>setLyrics(e.target.value)} placeholder="Lyrics will appear here after you click Generate…"/>
+          </div>
+          <div className="card">
+            <h2>Music Blueprint</h2>
+            {blueprint
+              ? <div style={{color:'#c0c0d0',fontSize:13,lineHeight:1.8,whiteSpace:'pre-wrap',marginBottom:14}}>{blueprint}</div>
+              : <div style={{color:'#555',fontSize:13,marginBottom:14}}>
+                  {generating?'Claude is writing your music blueprint…':'Click Generate with Claude AI to get a custom blueprint.'}
+                </div>
+            }
+            <div className="track">
+              {wave.map((h,i)=><div className="bar" key={i} style={{height:h}}/>)}
+            </div>
+            <div className="btn-row" style={{marginTop:10}}>
+              <button className="btn-ghost" onClick={()=>setWave(bars(90))}>↺ New Wave</button>
+            </div>
+          </div>
+        </div>
+      </>}
+
+      {/* ── UPLOADS TAB ── */}
+      {tab==='uploads'&&<div className="card">
+        <h2>Add Music / Clips</h2>
+        <p style={{color:'#888',fontSize:13,marginBottom:16}}>
+          Click a box to open File Explorer, or drag and drop files directly.
+        </p>
+        <input ref={audioRef} type="file" accept="audio/*" style={{display:'none'}} onChange={e=>handleAudio(e.target.files)}/>
+        <input ref={clipRef} type="file" accept="image/*,video/*" multiple style={{display:'none'}} onChange={e=>handleClips(e.target.files)}/>
+        <div className="grid">
+          <div className="dropzone" onClick={()=>audioRef.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();handleAudio(e.dataTransfer.files)}}>
+            <h2>♫ Add Song / Audio</h2>
+            <p style={{color:'#888',fontSize:12,margin:'6px 0 14px'}}>MP3 · WAV · M4A · OGG</p>
+            <button className="btn-gold" type="button">Open File Explorer</button>
+          </div>
+          <div className="dropzone" onClick={()=>clipRef.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();handleClips(e.dataTransfer.files)}}>
+            <h2>◈ Add Pictures / Video Clips</h2>
+            <p style={{color:'#888',fontSize:12,margin:'6px 0 14px'}}>JPG · PNG · WEBP · MP4 · WEBM</p>
+            <button className="btn-cyan" type="button">Open File Explorer</button>
+          </div>
+        </div>
+        {audioUrl&&<div className="audio-box">
+          <b style={{whiteSpace:'nowrap'}}>Loaded:</b>
+          <span className="status-pill">{audio?.name}</span>
+          <audio src={audioUrl} controls style={{width:'100%',maxWidth:500}}/>
+          <button className="btn-red" onClick={()=>{URL.revokeObjectURL(audioUrl);setAudioUrl('');setAudio(null)}}>Remove</button>
+        </div>}
+        {clips.length>0&&<><h3>Loaded Clips</h3>
+        <div className="asset-grid">
+          {clips.map((c,i)=><div className="asset" key={c.url}>
+            {c.kind==='image'?<img src={c.url} alt={c.name}/>:<video src={c.url} controls muted/>}
+            <p style={{color:'#888',fontSize:11,margin:'8px 0 6px'}}><b>{c.kind.toUpperCase()}</b> · {c.name}</p>
+            <button className="btn-red" style={{width:'100%'}} onClick={()=>removeClip(i)}>Remove</button>
+          </div>)}
+        </div></>}
+        {!clips.length&&!audioUrl&&<p style={{color:'#555',fontSize:13,textAlign:'center',marginTop:20}}>No files added yet.</p>}
+      </div>}
+
+      {/* ── IMAGE STUDIO TAB ── */}
+      {tab==='images'&&<>
+        <div className="card">
+          <h2>Grok / xAI Image Studio</h2>
+          <div className="grid">
+            <div><label>Aspect ratio</label><select value={ratio} onChange={e=>setRatio(e.target.value)}>{RATIOS.map(x=><option key={x}>{x}</option>)}</select></div>
+            <div><label>Number of images</label><select value={imgCount} onChange={e=>setImgCount(e.target.value)}>{[1,2,3,4].map(x=><option key={x}>{x}</option>)}</select></div>
+          </div>
+          <label>Image prompt</label>
+          <textarea rows="4" value={imgPrompt} onChange={e=>setImgPrompt(e.target.value)} placeholder="Describe the scene or visual to generate…"/>
+          <div className="btn-row">
+            <button className="btn-gold" disabled={busy} onClick={()=>generateImage()}>
+              {busy?<><span className="spinner"/>  Generating…</>:'Generate Image'}
+            </button>
+            <button className="btn-cyan" disabled={busy||!scenes.length} onClick={generateAllScenes}>
+              {busy?<><span className="spinner"/>  Working…</>:'Generate All Scenes'}
+            </button>
+          </div>
+          <div style={{marginTop:10}}><span className={`status-pill${imgStatus.startsWith('✓')?' ok':imgStatus.startsWith('Error')?' err':''}`}>{imgStatus}</span></div>
+        </div>
+        <div className="card">
+          <h2>Generated Images</h2>
+          {images.length>0?<div className="img-grid">
+            {images.map((im,i)=><div key={i} className="img-card">
+              <img src={im.url} alt={im.prompt}/>
+              <div className="img-card-foot">
+                <span style={{color:'#888',fontSize:11,flex:1}}>{im.label}</span>
+                <a className="btn-ghost" style={{textDecoration:'none',padding:'6px 12px',fontSize:12,borderRadius:10,border:'1px solid rgba(245,200,66,.4)',color:'#f5c842'}} href={im.url} download={`visiosync-${i+1}.png`}>↓</a>
+              </div>
+            </div>)}
+          </div>:<p style={{color:'#555',fontSize:13}}>Generated images will appear here.</p>}
+        </div>
+      </>}
+
+      {/* ── SCENES TAB ── */}
+      {tab==='scenes'&&<div className="card">
+        <h2>Scene Timeline</h2>
+        {scenes.length?<>
+          <div className="timeline">
+            {scenes.map((s,i)=><div className="timeline-block" key={i}>{i+1}. {s.title}<br/>{s.fx} · {s.duration}s</div>)}
+          </div>
+          <div className="grid">
+            {scenes.map((s,i)=><div key={i} className="scene-card">
+              <div className="scene-visual">
+                {s.imageUrl&&<img src={s.imageUrl} alt={s.title}/>}
+                <span>{i+1}. {s.title}</span>
+              </div>
+              <div>
+                <label>Scene title</label>
+                <input type="text" value={s.title} onChange={e=>setScenes(p=>p.map((x,j)=>j===i?{...x,title:e.target.value}:x))}/>
+              </div>
+              <div>
+                <label>Duration (seconds)</label>
+                <input type="number" value={s.duration} min="1" max="30" onChange={e=>setScenes(p=>p.map((x,j)=>j===i?{...x,duration:Number(e.target.value)||4}:x))}/>
+              </div>
+              <p style={{color:'#666',fontSize:11}}><b>FX:</b> {s.fx}</p>
+              <button cla

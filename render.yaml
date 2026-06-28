@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: visiosync-pro
+    runtime: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: XAI_API_KEY
+        sync: false   # paste your key in the Render dashboard
+      - key: PORT
+        value: "8787"
