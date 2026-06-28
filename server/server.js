@@ -144,7 +144,9 @@ app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
-// ── Claude / Anthropic text generation proxy ────────────────────────────app.post("/api/claude/generate", rateLimit, async (req, res) => {
+
+// ── Claude / Anthropic text generation proxy ──────────────────────────────
+app.post("/api/claude/generate", rateLimit, async (req, res) => {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
