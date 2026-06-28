@@ -502,4 +502,44 @@ function App(){
                 <input type="number" value={s.duration} min="1" max="30" onChange={e=>setScenes(p=>p.map((x,j)=>j===i?{...x,duration:Number(e.target.value)||4}:x))}/>
               </div>
               <p style={{color:'#666',fontSize:11}}><b>FX:</b> {s.fx}</p>
-              <button cla
+              <button className="btn-cyan" disabled={busy} onClick={()=>generateImage(s.prompt,i)} style={{width:'100%'}}>
+                {busy?'Working…':'Generate This Scene'}
+              </button>
+            </div>)}
+          </div>
+        </>:<p style={{color:'#555',fontSize:13}}>Go to Creator and click Generate to build your scene plan first.</p>}
+      </div>}
+
+      {/* ── PREVIEW TAB ── */}
+      {tab==='preview'&&<div className="card">
+        <h2>Live Preview Board</h2>
+        <div className="grid" style={{marginBottom:14}}>
+          <div>
+            <label>Caption style</label>
+            <select value={capStyle} onChange={e=>setCapStyle(e.target.value)}>{CAPTION_STYLES.map(x=><option key={x}>{x}</option>)}</select>
+          </div>
+          {scenes.length>0&&<div>
+            <label>Current scene</label>
+            <select value={shot} onChange={e=>setShot(Number(e.target.value))}>{scenes.map((s,i)=><option value={i} key={i}>{i+1}. {s.title}</option>)}</select>
+          </div>}
+        </div>
+        <div className="preview">
+          {currentScene.imageUrl
+            ?<img className="ken" src={currentScene.imageUrl} alt={currentScene.title}/>
+            :<div className="preview-placeholder">
+              <span style={{fontSize:40}}>◈</span>
+              <span>{scenes.length?currentScene.title||'Scene':'Generate scenes + images first'}</span>
+            </div>}
+          <div className="caption" style={{color:captionColor}}>{currentCaption}</div>
+        </div>
+        <p style={{color:'#666',fontSize:12}}>Auto-advances every 4 seconds. Scenes cycle with Ken Burns motion and live captions.</p>
+      </div>}
+
+    </main>
+  </>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
