@@ -140,6 +140,109 @@ app.post("/api/xai/images", rateLimit, async (req, res) => {
 });
 
 // ââ Catch-all: serve index.html for any unknown route âââââââââââââââââââââ
+
+// ── xAI Grok video generation ─────────────────────────────────────────────
+// Start image-to-video or text-to-video job
+app.post("/api/xai/videos/start", rateLimit, async (req, res) => {
+  try {
+    const apiKey = process.env.XAI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "XAI_API_KEY is not set." });
+    const { prompt, image_url, duration = 6, aspect_ratio = "16:9", resolution = "720p" } = req.body || {};
+    if (!prompt) return res.status(400).json({ error: "prompt is required." });
+    const body = {
+      model: "grok-imagine-video",
+      prompt,
+      duration: Math.min(10, Math.max(1, Number(duration) || 6)),
+      aspect_ratio,
+      resolution,
+    };
+    if (image_url) body.image = image_url;
+    const response = await fetch("https://api.x.ai/v1/videos/generations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) return res.status(response.status).json({ error: data?.error?.message || data?.error || `xAI error (HTTP ${response.status})`, detail: data });
+    res.json({ request_id: data.request_id });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Server error" });
+  }
+});
+
+// Poll status of a video generation job
+app.get("/api/xai/videos/:requestId", async (req, res) => {
+  try {
+    const apiKey = process.env.XAI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: "XAI_API_KEY is not set." });
+    const response = await fetch(`https://api.x.ai/v1/videos/${req.params.requestId}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) return res.status(response.status).json({ error: data?.error?.message || `xAI error (HTTP ${response.status})` });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Server error" });
+  }
+});
+
+// Stitch video clips into a final MP4 using ffmpeg
+app.post("/api/export/video", rateLimit, async (req, res) => {
+  const { execFile } = await import("child_process");
+  const { promises: fs, createReadStream } = await import("fs");
+  const { tmpdir } = await import("os");
+  const { promisify } = await import("util");
+  const execFileAsync = promisify(execFile);
+  const { clips, audio_url } = req.body || {};
+  if (!clips?.length) return res.status(400).json({ error: "clips array is required." });
+  const tmp = path.join(tmpdir(), `vsync-${Date.now()}`);
+  await fs.mkdir(tmp, { recursive: true });
+  try {
+    // Download all clips
+    const clipPaths = [];
+    for (let i = 0; i < clips.length; i++) {
+      if (!clips[i]?.url) continue;
+      const r = await fetch(clips[i].url);
+      if (!r.ok) throw new Error(`Failed to download clip ${i + 1}`);
+      const clipPath = path.join(tmp, `clip${i}.mp4`);
+      await fs.writeFile(clipPath, Buffer.from(await r.arrayBuffer()));
+      clipPaths.push(clipPath);
+    }
+    if (!clipPaths.length) throw new Error("No valid clip URLs provided.");
+    // Build ffmpeg concat file
+    const concatPath = path.join(tmp, "concat.txt");
+    await fs.writeFile(concatPath, clipPaths.map(p => `file '${p}'`).join("\n"));
+    const outputPath = path.join(tmp, "output.mp4");
+    if (audio_url) {
+      const ar = await fetch(audio_url);
+      if (!ar.ok) throw new Error("Failed to download audio.");
+      const audioPath = path.join(tmp, "audio.mp3");
+      await fs.writeFile(audioPath, Buffer.from(await ar.arrayBuffer()));
+      await execFileAsync("ffmpeg", [
+        "-f", "concat", "-safe", "0", "-i", concatPath,
+        "-i", audioPath,
+        "-c:v", "copy", "-c:a", "aac", "-shortest", "-y", outputPath,
+      ]);
+    } else {
+      await execFileAsync("ffmpeg", [
+        "-f", "concat", "-safe", "0", "-i", concatPath,
+        "-c", "copy", "-y", outputPath,
+      ]);
+    }
+    const stat = await fs.stat(outputPath);
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Disposition", 'attachment; filename="visiosync-music-video.mp4"');
+    res.setHeader("Content-Length", stat.size);
+    const stream = createReadStream(outputPath);
+    stream.pipe(res);
+    stream.on("end", () => fs.rm(tmp, { recursive: true, force: true }).catch(() => {}));
+    stream.on("error", () => fs.rm(tmp, { recursive: true, force: true }).catch(() => {}));
+  } catch (err) {
+    await fs.rm(tmp, { recursive: true, force: true }).catch(() => {});
+    res.status(500).json({ error: err.message || "Video export failed." });
+  }
+});
+
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
