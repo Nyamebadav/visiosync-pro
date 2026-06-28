@@ -172,6 +172,7 @@ function App(){
   const [wave,setWave]=useState(bars(70));
   const [videoExporting,setVideoExporting]=useState(false);
   const [videoStatus,setVideoStatus]=useState('');
+  const [audioTrack,setAudioTrack]=useState(null);
   const [status,setStatus]=useState('Ready');
   const [statusType,setStatusType]=useState('');
   const [generating,setGenerating]=useState(false);
@@ -332,7 +333,7 @@ function App(){
     try{
       const stitchResp=await fetch(proxy+'/api/export/video',{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({clips:clipUrls.map(function(url){return {url:url};})})
+        body:JSON.stringify({clips:clipUrls.map(function(url){return {url:url};}),audio_data:audioTrack&&audioTrack.data||undefined})
       });
       if(!stitchResp.ok){const e=await stitchResp.json();throw new Error(e.error||'stitch failed');}
       const blob=await stitchResp.blob();
@@ -344,6 +345,13 @@ function App(){
       setVideoStatus('✓ MP4 downloaded!');
     }catch(e){setVideoStatus('Stitch error: '+e.message);}
     setVideoExporting(false);
+  };
+  const handleAudioUpload=function(e){
+    const file=e.target.files&&e.target.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=function(ev){setAudioTrack({name:file.name,data:ev.target.result});};
+    reader.readAsDataURL(file);
   };
 
   const useLyricPrompt=()=>{
@@ -589,6 +597,18 @@ function App(){
           <div className="caption" style={{color:captionColor}}>{currentCaption}</div>
         </div>
         <p style={{color:'#666',fontSize:12}}>Auto-advances every 4 seconds. Scenes cycle with Ken Burns motion and live captions.</p>
+        <div style={{marginTop:16,padding:"12px 14px",background:"rgba(255,255,255,0.04)",borderRadius:8,border:"1px solid rgba(255,255,255,0.08)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <span style={{fontSize:13,color:"#aaa",whiteSpace:"nowrap"}}>🎵 Music track</span>
+            {!audioTrack
+              ?React.createElement("label",{style:{cursor:"pointer",padding:"5px 12px",border:"1px solid rgba(212,175,55,0.5)",borderRadius:6,fontSize:12,color:"#D4AF37",whiteSpace:"nowrap"}},
+                  "Upload MP3 / WAV",
+                  React.createElement("input",{type:"file",accept:"audio/*",style:{display:"none"},onChange:handleAudioUpload}))
+              :React.createElement(React.Fragment,null,
+                  React.createElement("span",{style:{fontSize:12,color:"#7fff7f",maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},"\u2713 "+audioTrack.name),
+                  React.createElement("button",{onClick:function(){setAudioTrack(null);},style:{background:"none",border:"none",color:"#888",cursor:"pointer",fontSize:12,padding:"2px 6px"}},"\u2715 Remove"))}
+          </div>
+        </div>
         <div style={{marginTop:18,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
           <button className="btn-gold" disabled={videoExporting||!scenes.some(function(s){return s.imageUrl;})} onClick={exportVideo} style={{display:"flex",alignItems:"center",gap:8}}>
             {videoExporting&&React.createElement("span",{className:"spinner"})}
