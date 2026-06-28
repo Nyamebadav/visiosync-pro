@@ -633,46 +633,34 @@ function App(){
 
     </main>
 
-    {(()=>{
-      const cCost=(usage.claude.inTok/1e6)*1.00+(usage.claude.outTok/1e6)*5.00;
-      const iCost=usage.imgs*0.07;
-      const vCost=usage.vids*0.40;
-      const tot=cCost+iCost+vCost;
-      return <div style={{position:'fixed',bottom:20,right:20,zIndex:9999,textAlign:'right'}}>
-        {showUsage&&<div style={{background:'#0d0d22',border:'1px solid rgba(245,200,66,.35)',borderRadius:18,padding:18,marginBottom:10,minWidth:260,boxShadow:'0 8px 40px rgba(0,0,0,.6)',textAlign:'left'}}>
-          <div style={{fontWeight:900,fontSize:14,color:'#f5c842',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <span>💰 Session Cost</span>
-            <button onClick={()=>{setUsage({claude:{calls:0,inTok:0,outTok:0},imgs:0,vids:0});localStorage.removeItem('vsync_usage');}} style={{background:'rgba(255,77,109,.1)',border:'1px solid rgba(255,77,109,.3)',borderRadius:8,color:'#ff4d6d',fontSize:11,padding:'3px 10px',cursor:'pointer',fontFamily:'inherit',fontWeight:700}}>Reset</button>
+    <div style={{position:'fixed',bottom:20,right:20,zIndex:9999,textAlign:'right'}}>
+      {showUsage&&<div style={{background:'#0d0d22',border:'1px solid rgba(245,200,66,.35)',borderRadius:18,padding:18,marginBottom:10,minWidth:260,boxShadow:'0 8px 40px rgba(0,0,0,.6)',textAlign:'left'}}>
+        <div style={{fontWeight:900,fontSize:14,color:'#f5c842',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span>{'💰 Session Cost'}</span>
+          <button onClick={()=>{setUsage({claude:{calls:0,inTok:0,outTok:0},imgs:0,vids:0});localStorage.removeItem('vsync_usage');}} style={{background:'rgba(255,77,109,.1)',border:'1px solid rgba(255,77,109,.3)',borderRadius:8,color:'#ff4d6d',fontSize:11,padding:'3px 10px',cursor:'pointer',fontFamily:'inherit',fontWeight:700}}>{'Reset'}</button>
+        </div>
+        <div style={{fontSize:12,color:'#aaa',lineHeight:2.2}}>
+          <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,.07)',paddingBottom:6}}>
+            <span>{'🤖 Claude ('+usage.claude.calls+' calls · '+(usage.claude.inTok+usage.claude.outTok).toLocaleString()+' tokens)'}</span>
+            <span style={{color:'#f5c842',fontWeight:700,marginLeft:10}}>{'$'+((usage.claude.inTok/1e6)*1.00+(usage.claude.outTok/1e6)*5.00).toFixed(4)}</span>
           </div>
-          <div style={{fontSize:12,color:'#aaa',lineHeight:2.2}}>
-            <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,.07)',paddingBottom:6}}>
-              <span>🤖 Claude ({usage.claude.calls} calls · {(usage.claude.inTok+usage.claude.outTok).toLocaleString()} tokens)</span>
-              <span style={{color:'#f5c842',fontWeight:700,marginLeft:10}}>{"$"}{cCost.toFixed(4)}</span>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,.07)',paddingBottom:6}}>
-              <span>🖼️ Images ({usage.imgs} generated)</span>
-              <span style={{color:'#00f5d4',fontWeight:700,marginLeft:10}}>{"$"}{iCost.toFixed(3)}</span>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,.07)',paddingBottom:6}}>
-              <span>🎬 Video clips ({usage.vids} clips)</span>
-              <span style={{color:'#ff4d6d',fontWeight:700,marginLeft:10}}>{"$"}{vCost.toFixed(2)}</span>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between',paddingTop:4,fontWeight:900,fontSize:13}}>
-              <span style={{color:'#eee'}}>Session total</span>
-              <span style={{color:'#f5c842'}}>{"$"}{tot.toFixed(3)}</span>
-            </div>
+          <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,.07)',paddingBottom:6}}>
+            <span>{'🖼️ Images ('+usage.imgs+' generated)'}</span>
+            <span style={{color:'#00f5d4',fontWeight:700,marginLeft:10}}>{'$'+(usage.imgs*0.07).toFixed(3)}</span>
           </div>
-          <div style={{marginTop:10,fontSize:10,color:'#444',lineHeight:1.6}}>Claude Haiku 4.5: $1/M in · $5/M out | xAI image ~$0.07 · video clip ~$0.40</div>
-        </div>}
-        <button onClick={()=>setShowUsage(v=>!v)} style={{background:'linear-gradient(135deg,rgba(245,200,66,.18),rgba(0,245,212,.1))',border:'1px solid rgba(245,200,66,.55)',borderRadius:999,color:'#f5c842',fontWeight:900,fontSize:13,padding:'10px 20px',cursor:'pointer',boxShadow:'0 4px 24px rgba(0,0,0,.45)',fontFamily:'inherit',letterSpacing:.5}}>
-          {"💰 ~$"}{tot.toFixed(2)}
-        </button>
-      </div>;
-    })()}
-  </>;
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-</script>
-</body>
-</html>
+          <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,.07)',paddingBottom:6}}>
+            <span>{'🎬 Video clips ('+usage.vids+' clips)'}</span>
+            <span style={{color:'#ff4d6d',fontWeight:700,marginLeft:10}}>{'$'+(usage.vids*0.40).toFixed(2)}</span>
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between',paddingTop:4,fontWeight:900,fontSize:13}}>
+            <span style={{color:'#eee'}}>{'Session total'}</span>
+            <span style={{color:'#f5c842'}}>{'$'+((usage.claude.inTok/1e6)*1.00+(usage.claude.outTok/1e6)*5.00+usage.imgs*0.07+usage.vids*0.40).toFixed(3)}</span>
+          </div>
+        </div>
+        <div style={{marginTop:10,fontSize:10,color:'#444',lineHeight:1.6}}>{'Claude Haiku 4.5: $1/M in · $5/M out | xAI ~$0.07/img · ~$0.40/clip'}</div>
+      </div>}
+      <button onClick={()=>setShowUsage(v=>!v)} style={{background:'linear-gradient(135deg,rgba(245,200,66,.18),rgba(0,245,212,.1))',border:'1px solid rgba(245,200,66,.55)',borderRadius:999,color:'#f5c842',fontWeight:900,fontSize:13,padding:'10px 20px',cursor:'pointer',boxShadow:'0 4px 24px rgba(0,0,0,.45)',fontFamily:'inherit'}}>
+        {'💰 ~$'+((usage.claude.inTok/1e6)*1.00+(usage.claude.outTok/1e6)*5.00+usage.imgs*0.07+usage.vids*0.40).toFixed(2)}
+      </button>
+    </div>
+  </>
