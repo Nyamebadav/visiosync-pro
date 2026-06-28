@@ -1,0 +1,12 @@
+{
+  "name": "visiosync-pro-medase",
+  "version": "1.0.0",
+  "description": "VisioSync Pro — AI Music Video Creator for medaseunitelle.com",
+  "scripts": {
+    "build": "cd server && npm install",
+    "start": "cd server && node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
