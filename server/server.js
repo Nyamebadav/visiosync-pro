@@ -1,4 +1,5 @@
 import express from "express";
+import ffmpegStatic from "ffmpeg-static";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
@@ -226,13 +227,13 @@ app.post("/api/export/video", rateLimit, async (req, res) => {
       if (!ar.ok) throw new Error("Failed to download audio.");
       const audioPath = path.join(tmp, "audio.mp3");
       await fs.writeFile(audioPath, Buffer.from(await ar.arrayBuffer()));
-      await execFileAsync("ffmpeg", [
+      await execFileAsync(ffmpegStatic, [
         "-f", "concat", "-safe", "0", "-i", concatPath,
         "-i", audioPath,
         "-c:v", "copy", "-c:a", "aac", "-shortest", "-y", outputPath,
       ]);
     } else {
-      await execFileAsync("ffmpeg", [
+      await execFileAsync(ffmpegStatic, [
         "-f", "concat", "-safe", "0", "-i", concatPath,
         "-c", "copy", "-y", outputPath,
       ]);
