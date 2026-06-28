@@ -157,7 +157,7 @@ async function callClaude(proxy, type, topic, genre, mood){
   });
   const data = await r.json().catch(()=>({}));
   if(!r.ok) throw new Error(data.error || `Claude API error (HTTP ${r.status})`);
-  return data.text || '';
+  return {text: data.content?.[0]?.text||data.text||'', usage: data.usage||null};
 }
 
 // ── Main App ───────────────────────────────────────────────────────────────
@@ -173,6 +173,8 @@ function App(){
   const [videoExporting,setVideoExporting]=useState(false);
   const [videoStatus,setVideoStatus]=useState('');
   const [audioTrack,setAudioTrack]=useState(null);
+  const [usage,setUsage]=useState(()=>{try{return JSON.parse(localStorage.getItem('vsync_usage')||'null')||{claude:{calls:0,inTok:0,outTok:0},imgs:0,vids:0};}catch(e){return {claude:{calls:0,inTok:0,outTok:0},imgs:0,vids:0};}});
+  const [showUsage,setShowUsage]=useState(false);
   const [status,setStatus]=useState('Ready');
   const [statusType,setStatusType]=useState('');
   const [generating,setGenerating]=useState(false);
@@ -213,6 +215,9 @@ function App(){
 
   // ── Actions ──────────────────────────────────────────────────────────────
   const setStatusMsg=(msg,type='')=>{setStatus(msg);setStatusType(type)};
+  const addClaudeUsage=(inp,out)=>setUsage(u=>{const n={...u,claude:{calls:u.claude.calls+1,inTok:u.claude.inTok+(inp||0),outTok:u.claude.outTok+(out||0)}};try{localStorage.setItem('vsync_usage',JSON.stringify(n));}catch(e){}return n;});
+  const addImgUsage=(n=1)=>setUsage(u=>{const nx={...u,imgs:u.imgs+n};try{localStorage.setItem('vsync_usage',JSON.stringify(nx));}catch(e){}return nx;});
+  const addVidUsage=(n=1)=>setUsage(u=>{const nx={...u,vids:u.vids+n};try{localStorage.setItem('vsync_usage',JSON.stringify(nx));}catch(e){}return nx;});
 
   const createAll=async()=>{
     setGenerating(true);
@@ -221,7 +226,9 @@ function App(){
       // 1. Lyrics
       let lyricsText='';
       try{
-        lyricsText=await callClaude(proxy,'lyrics',topic,genre,mood);
+        const lr=await callClaude(proxy,'lyrics',topic,genre,mood);
+        lyricsText=lr.text;
+        if(lr.usage)addClaudeUsage(lr.usage.input_tokens,lr.usage.output_tokens);
       }catch(e){
         lyricsText=makeLyricsFallback(topic,genre,mood);
         setStatusMsg('Claude unavailable — used template lyrics. Check ANTHROPIC_API_KEY.','err');
@@ -232,7 +239,9 @@ function App(){
       setStatusMsg('Claude is planning your scenes…');
       let scenesData=[];
       try{
-        const raw=await callClaude(proxy,'scenes',topic,genre,mood);
+        const sc=await callClaude(proxy,'scenes',topic,genre,mood);
+        if(sc.usage)addClaudeUsage(sc.usage.input_tokens,sc.usage.output_tokens);
+        const raw=sc.text;
         scenesData=JSON.parse(raw);
         if(!Array.isArray(scenesData)) throw new Error('not array');
         scenesData=scenesData.map(s=>({...s,imageUrl:''}));
@@ -245,8 +254,9 @@ function App(){
       // 3. Music blueprint
       setStatusMsg('Claude is writing your music blueprint…');
       try{
-        const bp=await callClaude(proxy,'blueprint',topic,genre,mood);
-        setBlueprint(bp);
+        const bpr=await callClaude(proxy,'blueprint',topic,genre,mood);
+        if(bpr.usage)addClaudeUsage(bpr.usage.input_tokens,bpr.usage.output_tokens);
+        setBlueprint(bpr.text);
       }catch(e){
         setBlueprint('');
       }
@@ -275,6 +285,7 @@ function App(){
         .map((x,i)=>({url:x.url||x.b64_json||'',prompt,created:new Date().toISOString(),label:`Image ${images.length+i+1}`}))
         .filter(x=>x.url);
       setImages(prev=>[...out,...prev]);
+      addImgUsage(out.length);
       if(sceneIndex!==null&&out[0]?.url){
         setScenes(prev=>prev.map((s,i)=>i===sceneIndex?{...s,imageUrl:out[0].url}:s));
       }
@@ -321,7 +332,7 @@ function App(){
         try{
           const r=await fetch(proxy+'/api/xai/videos/'+c.requestId);
           const d=await r.json();
-          if(d.status==='done'){clipUrls[c.idx]=d.video&&d.video.url?d.video.url:d.url;}
+          if(d.status==='done'){clipUrls[c.idx]=d.video&&d.video.url?d.video.url:d.url;addVidUsage(1);}
           else if(d.status==='failed'||d.status==='expired'){throw new Error('Clip '+(c.idx+1)+' '+d.status);}
           else{next.push(c);}
         }catch(e){setVideoStatus('Error: '+e.message);setVideoExporting(false);return;}
@@ -621,6 +632,43 @@ function App(){
       </div>}
 
     </main>
+
+    {(()=>{
+      const cCost=(usage.claude.inTok/1e6)*1.00+(usage.claude.outTok/1e6)*5.00;
+      const iCost=usage.imgs*0.07;
+      const vCost=usage.vids*0.40;
+      const tot=cCost+iCost+vCost;
+      return <div style={{position:'fixed',bottom:20,right:20,zIndex:9999,textAlign:'right'}}>
+        {showUsage&&<div style={{background:'#0d0d22',border:'1px solid rgba(245,200,66,.35)',borderRadius:18,padding:18,marginBottom:10,minWidth:260,boxShadow:'0 8px 40px rgba(0,0,0,.6)',textAlign:'left'}}>
+          <div style={{fontWeight:900,fontSize:14,color:'#f5c842',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span>💰 Session Cost</span>
+            <button onClick={()=>{setUsage({claude:{calls:0,inTok:0,outTok:0},imgs:0,vids:0});localStorage.removeItem('vsync_usage');}} style={{background:'rgba(255,77,109,.1)',border:'1px solid rgba(255,77,109,.3)',borderRadius:8,color:'#ff4d6d',fontSize:11,padding:'3px 10px',cursor:'pointer',fontFamily:'inherit',fontWeight:700}}>Reset</button>
+          </div>
+          <div style={{fontSize:12,color:'#aaa',lineHeight:2.2}}>
+            <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,.07)',paddingBottom:6}}>
+              <span>🤖 Claude ({usage.claude.calls} calls · {(usage.claude.inTok+usage.claude.outTok).toLocaleString()} tokens)</span>
+              <span style={{color:'#f5c842',fontWeight:700,marginLeft:10}}>{"$"}{cCost.toFixed(4)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,.07)',paddingBottom:6}}>
+              <span>🖼️ Images ({usage.imgs} generated)</span>
+              <span style={{color:'#00f5d4',fontWeight:700,marginLeft:10}}>{"$"}{iCost.toFixed(3)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',borderBottom:'1px solid rgba(255,255,255,.07)',paddingBottom:6}}>
+              <span>🎬 Video clips ({usage.vids} clips)</span>
+              <span style={{color:'#ff4d6d',fontWeight:700,marginLeft:10}}>{"$"}{vCost.toFixed(2)}</span>
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',paddingTop:4,fontWeight:900,fontSize:13}}>
+              <span style={{color:'#eee'}}>Session total</span>
+              <span style={{color:'#f5c842'}}>{"$"}{tot.toFixed(3)}</span>
+            </div>
+          </div>
+          <div style={{marginTop:10,fontSize:10,color:'#444',lineHeight:1.6}}>Claude Haiku 4.5: $1/M in · $5/M out | xAI image ~$0.07 · video clip ~$0.40</div>
+        </div>}
+        <button onClick={()=>setShowUsage(v=>!v)} style={{background:'linear-gradient(135deg,rgba(245,200,66,.18),rgba(0,245,212,.1))',border:'1px solid rgba(245,200,66,.55)',borderRadius:999,color:'#f5c842',fontWeight:900,fontSize:13,padding:'10px 20px',cursor:'pointer',boxShadow:'0 4px 24px rgba(0,0,0,.45)',fontFamily:'inherit',letterSpacing:.5}}>
+          {"💰 ~$"}{tot.toFixed(2)}
+        </button>
+      </div>;
+    })()}
   </>;
 }
 
