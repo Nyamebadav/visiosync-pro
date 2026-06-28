@@ -305,6 +305,7 @@ function App(){
         const d=await r.json();
         if(!r.ok)throw new Error(d.error||'start failed');
         requestIds.push({idx:i,requestId:d.request_id});
+        if(i<scenes.length-1)await new Promise(r=>setTimeout(r,1500)); // rate limit: 1 req/s
       }catch(e){setVideoStatus('Clip '+(i+1)+' error: '+e.message);setVideoExporting(false);return;}
     }
     const clipUrls=new Array(scenes.length).fill(null);
