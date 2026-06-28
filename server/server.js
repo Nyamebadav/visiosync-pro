@@ -144,4 +144,63 @@ app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
-// ── Claude / Anthropic text generation proxy ────────────────────────────
+// ── Claude / Anthropic text generation proxy ────────────────────────────app.post("/api/claude/generate", rateLimit, async (req, res) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({
+        error: "ANTHROPIC_API_KEY is not set. Add it to your environment variables and redeploy.",
+      });
+    }
+
+    const {
+      prompt,
+      system = "You are a creative music video director who writes vivid, cinematic scene descriptions.",
+      model = "claude-haiku-4-5-20251001",
+      max_tokens = 1024,
+    } = req.body || {};
+
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({ error: "prompt is required and must be a string." });
+    }
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens,
+        system,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data?.error?.message || `Claude API failed (HTTP ${response.status})`,
+        detail: data,
+      });
+    }
+
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message || "Server error",
+      hint: "Check your Anthropic API key and network connectivity.",
+    });
+  }
+});
+
+// ── Start server ────────────────────────────────────────────────────────────
+app.listen(port, "0.0.0.0", () => {
+  console.log(`\n✦ VisioSync Pro running on http://0.0.0.0:${port}`);
+  console.log(`  Health: http://localhost:${port}/health`);
+  console.log(`  ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "✓ loaded" : "✗ MISSING"}`);
+  console.log(`  XAI_API_KEY:       ${process.env.XAI_API_KEY ? "✓ loaded" : "✗ MISSING"}\n`);
+});
