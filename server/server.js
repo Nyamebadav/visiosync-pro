@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 8787;
 
-// ── Security / production headers ──────────────────────────────────────────
+// ââ Security / production headers ââââââââââââââââââââââââââââââââââââââââââ
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -19,7 +19,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── CORS ───────────────────────────────────────────────────────────────────
+// ââ CORS âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const allowedOrigins = [
   "https://www.medaseunitelle.com",
   "https://medaseunitelle.com",
@@ -38,10 +38,10 @@ app.use(
 );
 app.options("*", cors());
 
-// ── Body parsing ───────────────────────────────────────────────────────────
+// ââ Body parsing âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 app.use(express.json({ limit: "25mb" }));
 
-// ── Naive rate limiter (100 image requests per IP per minute) ──────────────
+// ââ Naive rate limiter (100 image requests per IP per minute) ââââââââââââââ
 const ratemap = new Map();
 function rateLimit(req, res, next) {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
@@ -50,31 +50,31 @@ function rateLimit(req, res, next) {
   if (now > entry.reset) { entry.count = 0; entry.reset = now + 60_000; }
   entry.count++;
   ratemap.set(ip, entry);
-  if (entry.count > 100) return res.status(429).json({ error: "Too many requests — slow down." });
+  if (entry.count > 100) return res.status(429).json({ error: "Too many requests â slow down." });
   next();
 }
 
-// ── Static frontend ────────────────────────────────────────────────────────
+// ââ Static frontend ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 app.use(express.static(path.join(__dirname, "../public")));
 
-// ── Health check ───────────────────────────────────────────────────────────
+// ââ Health check âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 app.get("/health", (_req, res) => {
   const hasXai = Boolean(process.env.XAI_API_KEY);
   const hasClaude = Boolean(process.env.ANTHROPIC_API_KEY);
   res.json({
     ok: true,
-    service: "VisioSync Pro — Medase Unitelle",
+    service: "VisioSync Pro â Medase Unitelle",
     port,
     hasXaiKey: hasXai,
     hasAnthropicKey: hasClaude,
     status: {
-      textGeneration: hasClaude ? "✓ Claude AI ready" : "✗ Add ANTHROPIC_API_KEY",
-      imageGeneration: hasXai ? "✓ Grok Image ready" : "✗ Add XAI_API_KEY",
+      textGeneration: hasClaude ? "â Claude AI ready" : "â Add ANTHROPIC_API_KEY",
+      imageGeneration: hasXai ? "â Grok Image ready" : "â Add XAI_API_KEY",
     },
   });
 });
 
-// ── xAI / Grok image generation proxy ─────────────────────────────────────
+// ââ xAI / Grok image generation proxy âââââââââââââââââââââââââââââââââââââ
 app.post("/api/xai/images", rateLimit, async (req, res) => {
   try {
     const apiKey = process.env.XAI_API_KEY;
@@ -89,7 +89,7 @@ app.post("/api/xai/images", rateLimit, async (req, res) => {
       prompt,
       n = 1,
       response_format = "url",
-      model = "grok-2-image-1212",
+      model = "grok-imagine-image",
       size,
       aspect_ratio,
       quality,
@@ -139,13 +139,13 @@ app.post("/api/xai/images", rateLimit, async (req, res) => {
   }
 });
 
-// ── Catch-all: serve index.html for any unknown route ─────────────────────
+// ââ Catch-all: serve index.html for any unknown route âââââââââââââââââââââ
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
 
-// ── Claude / Anthropic text generation proxy ──────────────────────────────
+// ââ Claude / Anthropic text generation proxy ââââââââââââââââââââââââââââââ
 app.post("/api/claude/generate", rateLimit, async (req, res) => {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -199,10 +199,10 @@ app.post("/api/claude/generate", rateLimit, async (req, res) => {
   }
 });
 
-// ── Start server ────────────────────────────────────────────────────────────
+// ââ Start server ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 app.listen(port, "0.0.0.0", () => {
-  console.log(`\n✦ VisioSync Pro running on http://0.0.0.0:${port}`);
+  console.log(`\nâ¦ VisioSync Pro running on http://0.0.0.0:${port}`);
   console.log(`  Health: http://localhost:${port}/health`);
-  console.log(`  ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "✓ loaded" : "✗ MISSING"}`);
-  console.log(`  XAI_API_KEY:       ${process.env.XAI_API_KEY ? "✓ loaded" : "✗ MISSING"}\n`);
+  console.log(`  ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "â loaded" : "â MISSING"}`);
+  console.log(`  XAI_API_KEY:       ${process.env.XAI_API_KEY ? "â loaded" : "â MISSING"}\n`);
 });
