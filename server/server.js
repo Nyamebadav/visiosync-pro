@@ -202,7 +202,7 @@ app.post("/api/export/video", rateLimit, async (req, res) => {
   const { tmpdir } = await import("os");
   const { promisify } = await import("util");
   const execFileAsync = promisify(execFile);
-  const { clips, audio_url } = req.body || {};
+  const { clips, audio_url, audio_data } = req.body || {};
   if (!clips?.length) return res.status(400).json({ error: "clips array is required." });
   const tmp = path.join(tmpdir(), `vsync-${Date.now()}`);
   await fs.mkdir(tmp, { recursive: true });
@@ -222,15 +222,24 @@ app.post("/api/export/video", rateLimit, async (req, res) => {
     const concatPath = path.join(tmp, "concat.txt");
     await fs.writeFile(concatPath, clipPaths.map(p => `file '${p}'`).join("\n"));
     const outputPath = path.join(tmp, "output.mp4");
-    if (audio_url) {
-      const ar = await fetch(audio_url);
-      if (!ar.ok) throw new Error("Failed to download audio.");
+    const hasAudio = audio_data || audio_url;
+    if (hasAudio) {
       const audioPath = path.join(tmp, "audio.mp3");
-      await fs.writeFile(audioPath, Buffer.from(await ar.arrayBuffer()));
+      if (audio_data) {
+        // base64 data URI from browser FileReader
+        const b64 = audio_data.replace(/^data:audio\/[^;]+;base64,/, "");
+        await fs.writeFile(audioPath, Buffer.from(b64, "base64"));
+      } else {
+        const ar = await fetch(audio_url);
+        if (!ar.ok) throw new Error("Failed to download audio.");
+        await fs.writeFile(audioPath, Buffer.from(await ar.arrayBuffer()));
+      }
       await execFileAsync(ffmpegStatic, [
         "-f", "concat", "-safe", "0", "-i", concatPath,
         "-i", audioPath,
-        "-c:v", "copy", "-c:a", "aac", "-shortest", "-y", outputPath,
+        "-map", "0:v", "-map", "1:a",
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "-shortest", "-y", outputPath,
       ]);
     } else {
       await execFileAsync(ffmpegStatic, [
