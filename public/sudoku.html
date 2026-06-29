@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudoku — 数独</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --ink: #1C1410;
+  --ink-mid: #3D2E22;
+  --ink-light: #7A6552;
+  --paper: #F7F0E3;
+  --paper-warm: #EFE4CC;
+  --paper-dark: #E0D0B0;
+  --accent: #8B2020;
+  --accent-light: rgba(139,32,32,0.12);
+  --highlight: #D4960A;
+  --highlight-light: rgba(212,150,10,0.13);
+  --blue: #1A4A7A;
+  --blue-light: rgba(26,74,122,0.1);
+  --correct: #1A6B3C;
+  --error: #8B2020;
+  --grid-thin: 1px solid rgba(28,20,16,0.25);
+  --grid-thick: 2.5px solid rgba(28,20,16,0.75);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--paper);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Playfair Display', serif;
+  color: var(--ink);
+  padding: 20px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '数独';
+  position: fixed;
+  bottom: -10px;
+  right: 20px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 8rem;
+  color: rgba(28,20,16,0.04);
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 0;
+  line-height: 1;
+}
+
+.game-container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  max-width: 540px;
+  width: 100%;
+}
+
+header { text-align: center; width: 100%; }
+
+.title-jp {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 2.2rem;
+  font-weight: 300;
+  color: var(--ink);
+  letter-spacing: 0.3em;
+  line-height: 1;
+}
+
+.title-en {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.8rem;
+  color: var(--ink-light);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.ink-rule {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ink-mid), var(--accent), var(--ink-mid), transparent);
+  margin: 6px 0;
+  opacity: 0.5;
+}
+
+.top-bar {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(28,20,16,0.04);
+  border: 1px solid rgba(28,20,16,0.12);
+  padding: 6px 16px;
+  min-width: 80px;
+}
+
+.stat-label {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  color: var(--ink-light);
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.stat-value.timer { font-variant-numeric: tabular-nums; font-size: 1.1rem; }
+
+.diff-row {
+  display: flex;
+  gap: 0;
+  border: 1px solid rgba(28,20,16,0.2);
+  overflow: hidden;
+}
+
+.diff-btn {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  padding: 5px 14px;
+  border: none;
+  background: transparent;
+  color: var(--ink-light);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-right: 1px solid rgba(28,20,16,0.2);
+}
+.diff-btn:last-child { border-right: none; }
+.diff-btn.active { background: var(--ink); color: var(--paper); }
+.diff-btn:hover:not(.active) { background: rgba(28,20,16,0.07); color: var(--ink); }
+
+.board-frame {
+  width: 100%;
+  max-width: 480px;
+  background: var(--paper-warm);
+  border: 3px solid var(--ink-mid);
+  box-shadow: 4px 4px 0 rgba(28,20,16,0.15), 8px 8px 0 rgba(28,20,16,0.07), 0 0 0 6px var(--paper), 0 0 0 7px rgba(28,20,16,0.12);
+  position: relative;
+}
+
+#sudoku-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.cell {
+  position: relative;
+  border-right: var(--grid-thin);
+  border-bottom: var(--grid-thin);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.12s;
+  aspect-ratio: 1;
+  background: transparent;
+}
+
+.cell:nth-child(9n)   { border-right: none; }
+.cell:nth-child(n+73) { border-bottom: none; }
+.cell.box-right  { border-right: var(--grid-thick) !important; }
+.cell.box-bottom { border-bottom: var(--grid-thick) !important; }
+
+.cell.given .cell-value { font-weight: 700; color: var(--ink); }
+
+.cell-value {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(0.9rem, 2.8vw, 1.4rem);
+  color: var(--blue);
+  user-select: none;
+  transition: color 0.15s;
+  line-height: 1;
+}
+
+.cell.error .cell-value { color: var(--error); }
+.cell.error { background: rgba(139,32,32,0.06); }
+.cell.selected { background: var(--highlight-light) !important; outline: 2px solid var(--highlight); outline-offset: -2px; z-index: 2; }
+.cell.highlighted { background: rgba(212,150,10,0.06); }
+.cell.same-num    { background: rgba(26,74,122,0.08); }
+.cell.peer        { background: rgba(28,20,16,0.04); }
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  grid-template-rows: repeat(3,1fr);
+  width: 85%;
+  height: 85%;
+  position: absolute;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Noto Serif JP', serif;
+  font-size: clamp(0.35rem, 1vw, 0.55rem);
+  color: var(--ink-light);
+  line-height: 1;
+}
+
+.numpad-section { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 5px;
+  width: 100%;
+}
+
+.num-btn {
+  aspect-ratio: 1;
+  border: 1px solid rgba(28,20,16,0.2);
+  background: var(--paper-warm);
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(0.9rem, 2vw, 1.3rem);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 2px 2px 0 rgba(28,20,16,0.1);
+  position: relative;
+}
+
+.num-btn:hover { background: var(--paper-dark); transform: translateY(-1px); box-shadow: 2px 3px 0 rgba(28,20,16,0.15); }
+.num-btn:active { transform: translateY(0); box-shadow: 1px 1px 0 rgba(28,20,16,0.1); }
+
+.num-btn .remaining {
+  position: absolute;
+  top: 2px; right: 3px;
+  font-size: 0.45rem;
+  color: var(--ink-light);
+  font-family: 'Noto Serif JP', serif;
+}
+
+.num-btn.exhausted { opacity: 0.3; pointer-events: none; }
+
+.action-row { display: flex; gap: 8px; width: 100%; }
+
+.action-btn {
+  flex: 1;
+  padding: 8px 0;
+  border: 1px solid rgba(28,20,16,0.2);
+  background: var(--paper-warm);
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 2px 2px 0 rgba(28,20,16,0.08);
+}
+
+.action-btn:hover { background: var(--paper-dark); box-shadow: 2px 3px 0 rgba(28,20,16,0.12); }
+.action-btn.pencil-on { background: var(--ink-mid); color: var(--paper); }
+
+#complete-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(247,240,227,0.92);
+  z-index: 100;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  backdrop-filter: blur(6px);
+}
+#complete-overlay.show { display: flex; }
+
+.complete-jp { font-family: 'Noto Serif JP', serif; font-size: 4rem; font-weight: 300; color: var(--ink); letter-spacing: 0.3em; animation: fadeInUp 0.6s ease; }
+.complete-en { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.1rem; color: var(--ink-light); letter-spacing: 0.1em; animation: fadeInUp 0.6s 0.15s ease both; }
+.complete-time { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--accent); animation: fadeInUp 0.6s 0.3s ease both; }
+
+@keyframes fadeInUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+.new-game-btn {
+  font-family: 'Playfair Display', serif; font-style: italic;
+  padding: 10px 32px; border: 2px solid var(--ink); background: transparent;
+  color: var(--ink); cursor: pointer; font-size: 0.9rem; letter-spacing: 0.1em;
+  transition: all 0.2s; animation: fadeInUp 0.6s 0.45s ease both;
+}
+.new-game-btn:hover { background: var(--ink); color: var(--paper); }
+
+.cell-pop { animation: cellPop 0.18s ease; }
+@keyframes cellPop { 0%{transform:scale(1)} 50%{transform:scale(1.18)} 100%{transform:scale(1)} }
+
+.cell-error-shake { animation: shake 0.3s ease; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+</style>
+</head>
+<body>
+
+<div class="game-container">
+  <header>
+    <div class="title-jp">数　独</div>
+    <div class="title-en">The Art of Numbers</div>
+    <div class="ink-rule"></div>
+  </header>
+
+  <div class="top-bar">
+    <div class="stat-box">
+      <span class="stat-label">Mistakes</span>
+      <span class="stat-value" id="mistakes">0 <span style="font-size:0.7rem;color:var(--ink-light)">/3</span></span>
+    </div>
+    <div class="diff-row">
+      <button class="diff-btn active" onclick="setDiff('easy',this)">Easy</button>
+      <button class="diff-btn" onclick="setDiff('medium',this)">Medium</button>
+      <button class="diff-btn" onclick="setDiff('hard',this)">Hard</button>
+    </div>
+    <div class="stat-box">
+      <span class="stat-label">Time</span>
+      <span class="stat-value timer" id="timer">0:00</span>
+    </div>
+  </div>
+
+  <div class="board-frame">
+    <div id="sudoku-grid"></div>
+  </div>
+
+  <div class="numpad-section">
+    <div class="numpad" id="numpad"></div>
+    <div class="action-row">
+      <button class="action-btn" onclick="undoMove()">↩ Undo</button>
+      <button class="action-btn" onclick="eraseCell()">✕ Erase</button>
+      <button class="action-btn" id="pencil-btn" onclick="togglePencil()">✏ Notes</button>
+      <button class="action-btn" onclick="getHint()">◎ Hint</button>
+      <button class="action-btn" onclick="newGame()">↺ New</button>
+    </div>
+  </div>
+</div>
+
+<div id="complete-overlay">
+  <div class="complete-jp">完成</div>
+  <div class="complete-en">Puzzle Complete</div>
+  <div class="complete-time" id="complete-time"></div>
+  <button class="new-game-btn" onclick="newGame();document.getElementById('complete-overlay').classList.remove('show')">New Puzzle</button>
+</div>
+
+<script>
+function generateSolved() {
+  const grid = Array.from({length:9}, ()=>Array(9).fill(0));
+  fillGrid(grid);
+  return grid;
+}
+
+function fillGrid(grid) {
+  const pos = findEmpty(grid);
+  if (!pos) return true;
+  const [r,c] = pos;
+  const nums = shuffle([1,2,3,4,5,6,7,8,9]);
+  for (const n of nums) {
+    if (isValid(grid, r, c, n)) {
+      grid[r][c] = n;
+      if (fillGrid(grid)) return true;
+      grid[r][c] = 0;
+    }
+  }
+  return false;
+}
+
+function findEmpty(grid) {
+  for (let r=0;r<9;r++) for (let c=0;c<9;c++) if (!grid[r][c]) return [r,c];
+  return null;
+}
+
+function isValid(grid, r, c, n) {
+  if (grid[r].includes(n)) return false;
+  if (grid.some(row=>row[c]===n)) return false;
+  const br=Math.floor(r/3)*3, bc=Math.floor(c/3)*3;
+  for (let i=0;i<3;i++) for (let j=0;j<3;j++) if (grid[br+i][bc+j]===n) return false;
+  return true;
+}
+
+function shuffle(arr) {
+  for (let i=arr.length-1;i>0;i--) {
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+function createPuzzle(solved, difficulty) {
+  const clues = {easy:36, medium:28, hard:22};
+  const target = clues[difficulty] || 36;
+  const puzzle = solved.map(r=>[...r]);
+  const cells = shuffle([...Array(81).keys()]);
+  let removed = 0;
+  for (const idx of cells) {
+    if (81 - removed <= target) break;
+    const r=Math.floor(idx/9), c=idx%9;
+    puzzle[r][c] = 0;
+    removed++;
+  }
+  return puzzle;
+}
+
+let solution = [], puzzle = [], userGrid = [];
+let notes = Array.from({length:9},()=>Array.from({length:9},()=>new Set()));
+let given = [], selected = null, pencilMode = false;
+let mistakes = 0, maxMistakes = 3, history = [];
+let difficulty = 'easy', timerInterval = null, seconds = 0, gameOver = false;
+
+function setDiff(diff, btn) {
+  difficulty = diff;
+  document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  newGame();
+}
+
+function newGame() {
+  solution = generateSolved();
+  puzzle   = createPuzzle(solution.map(r=>[...r]), difficulty);
+  userGrid = puzzle.map(r=>[...r]);
+  notes    = Array.from({length:9},()=>Array.from({length:9},()=>new Set()));
+  given    = puzzle.map(r=>r.map(v=>v!==0));
+  selected = null; pencilMode = false; mistakes = 0; history = []; gameOver = false;
+  document.getElementById('pencil-btn').classList.remove('pencil-on');
+  document.getElementById('mistakes').innerHTML = `0 <span style="font-size:0.7rem;color:var(--ink-light)">/3</span>`;
+  clearInterval(timerInterval);
+  seconds = 0; updateTimer();
+  timerInterval = setInterval(()=>{ if(!gameOver){seconds++;updateTimer();} }, 1000);
+  renderGrid(); renderNumpad();
+}
+
+function updateTimer() {
+  const m = Math.floor(seconds/60), s = seconds%60;
+  document.getElementById('timer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+function renderGrid() {
+  const grid = document.getElementById('sudoku-grid');
+  grid.innerHTML = '';
+  for (let r=0;r<9;r++) {
+    for (let c=0;c<9;c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.r = r; cell.dataset.c = c;
+      if (c===2||c===5) cell.classList.add('box-right');
+      if (r===2||r===5) cell.classList.add('box-bottom');
+      if (given[r][c]) cell.classList.add('given');
+      if (selected) {
+        const {r:sr,c:sc} = selected;
+        const selVal = userGrid[sr][sc];
+        if (r===sr&&c===sc) { cell.classList.add('selected'); }
+        else if (r===sr||c===sc||(Math.floor(r/3)===Math.floor(sr/3)&&Math.floor(c/3)===Math.floor(sc/3))) { cell.classList.add('peer'); }
+        if (selVal&&userGrid[r][c]===selVal&&!(r===sr&&c===sc)) { cell.classList.add('same-num'); }
+      }
+      const val = userGrid[r][c];
+      if (val) {
+        const span = document.createElement('span');
+        span.className = 'cell-value';
+        span.textContent = val;
+        if (!given[r][c] && val !== solution[r][c]) cell.classList.add('error');
+        cell.appendChild(span);
+      } else if (notes[r][c].size) {
+        const ng = document.createElement('div');
+        ng.className = 'notes-grid';
+        for (let n=1;n<=9;n++) {
+          const nd = document.createElement('div');
+          nd.className = 'note';
+          nd.textContent = notes[r][c].has(n) ? n : '';
+          ng.appendChild(nd);
+        }
+        cell.appendChild(ng);
+      }
+      cell.addEventListener('click', ()=>selectCell(r,c));
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function renderNumpad() {
+  const pad = document.getElementById('numpad');
+  pad.innerHTML = '';
+  const counts = Array(10).fill(0);
+  for (let r=0;r<9;r++) for (let c=0;c<9;c++) if (userGrid[r][c]) counts[userGrid[r][c]]++;
+  for (let n=1;n<=9;n++) {
+    const btn = document.createElement('button');
+    btn.className = 'num-btn';
+    btn.innerHTML = `${n}<span class="remaining">${9-counts[n]}</span>`;
+    if (counts[n]>=9) btn.classList.add('exhausted');
+    btn.addEventListener('click', ()=>inputNumber(n));
+    pad.appendChild(btn);
+  }
+}
+
+function selectCell(r,c) {
+  if (gameOver) return;
+  selected = {r,c};
+  renderGrid();
+}
+
+function inputNumber(n) {
+  if (!selected||gameOver) return;
+  const {r,c} = selected;
+  if (given[r][c]) return;
+  if (pencilMode) {
+    if (userGrid[r][c]) return;
+    history.push({type:'note',r,c,notes:new Set(notes[r][c])});
+    if (notes[r][c].has(n)) notes[r][c].delete(n);
+    else notes[r][c].add(n);
+    renderGrid(); renderNumpad(); return;
+  }
+  history.push({type:'value',r,c,old:userGrid[r][c],oldNotes:new Set(notes[r][c])});
+  notes[r][c].clear();
+  if (userGrid[r][c]===n) { userGrid[r][c]=0; renderGrid();renderNumpad();return; }
+  userGrid[r][c] = n;
+  if (n !== solution[r][c]) {
+    mistakes++;
+    document.getElementById('mistakes').innerHTML = `${mistakes} <span style="font-size:0.7rem;color:var(--ink-light)">/3</span>`;
+    if (mistakes >= maxMistakes) { gameOver=true; clearInterval(timerInterval); showGameOver(); return; }
+    const cellEl = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+    if (cellEl) { cellEl.classList.add('cell-error-shake'); setTimeout(()=>cellEl.classList.remove('cell-error-shake'),300); }
+  } else {
+    clearPeerNotes(r,c,n);
+    setTimeout(()=>{
+      const cellEl = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+      if (cellEl) { cellEl.classList.add('cell-pop'); setTimeout(()=>cellEl.classList.remove('cell-pop'),180); }
+    },0);
+  }
+  renderGrid(); renderNumpad();
+  if (checkComplete()) { gameOver = true; clearInterval(timerInterval); setTimeout(showComplete, 600); }
+}
+
+function clearPeerNotes(r,c,n) {
+  for (let i=0;i<9;i++) { notes[r][i].delete(n); notes[i][c].delete(n); }
+  const br=Math.floor(r/3)*3, bc=Math.floor(c/3)*3;
+  for (let i=0;i<3;i++) for (let j=0;j<3;j++) notes[br+i][bc+j].delete(n);
+}
+
+function eraseCell() {
+  if (!selected||gameOver) return;
+  const {r,c}=selected;
+  if (given[r][c]) return;
+  history.push({type:'value',r,c,old:userGrid[r][c],oldNotes:new Set(notes[r][c])});
+  userGrid[r][c]=0; notes[r][c].clear();
+  renderGrid(); renderNumpad();
+}
+
+function undoMove() {
+  if (!history.length) return;
+  const last = history.pop();
+  if (last.type==='value') { userGrid[last.r][last.c]=last.old; notes[last.r][last.c]=new Set(last.oldNotes); }
+  else { notes[last.r][last.c]=new Set(last.notes); }
+  renderGrid(); renderNumpad();
+}
+
+function togglePencil() {
+  pencilMode = !pencilMode;
+  document.getElementById('pencil-btn').classList.toggle('pencil-on', pencilMode);
+}
+
+function getHint() {
+  if (gameOver) return;
+  const empties = [];
+  for (let r=0;r<9;r++) for (let c=0;c<9;c++)
+    if (!given[r][c] && userGrid[r][c]!==solution[r][c]) empties.push({r,c});
+  if (!empties.length) return;
+  const {r,c} = empties[Math.floor(Math.random()*empties.length)];
+  history.push({type:'value',r,c,old:userGrid[r][c],oldNotes:new Set(notes[r][c])});
+  userGrid[r][c]=solution[r][c];
+  notes[r][c].clear();
+  clearPeerNotes(r,c,solution[r][c]);
+  given[r][c]=true;
+  selected={r,c};
+  renderGrid(); renderNumpad();
+  if (checkComplete()) { gameOver=true; clearInterval(timerInterval); setTimeout(showComplete,600); }
+}
+
+document.addEventListener('keydown', e=>{
+  if (gameOver) return;
+  if (e.key>='1'&&e.key<='9') { inputNumber(parseInt(e.key)); return; }
+  if (e.key==='Backspace'||e.key==='Delete'||e.key==='0') { eraseCell(); return; }
+  if (e.key==='p'||e.key==='P') { togglePencil(); return; }
+  if (!selected) return;
+  let {r,c}=selected;
+  if (e.key==='ArrowUp')    r=Math.max(0,r-1);
+  if (e.key==='ArrowDown')  r=Math.min(8,r+1);
+  if (e.key==='ArrowLeft')  c=Math.max(0,c-1);
+  if (e.key==='ArrowRight') c=Math.min(8,c+1);
+  selected={r,c}; renderGrid();
+  e.preventDefault();
+});
+
+function checkComplete() {
+  for (let r=0;r<9;r++) for (let c=0;c<9;c++) if (userGrid[r][c]!==solution[r][c]) return false;
+  return true;
+}
+
+function showComplete() {
+  const m=Math.floor(seconds/60),s=seconds%60;
+  document.getElementById('complete-time').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  document.getElementById('complete-overlay').classList.add('show');
+}
+
+function showGameOver() {
+  for (let r=0;r<9;r++) for (let c=0;c<9;c++) userGrid[r][c]=solution[r][c];
+  selected=null; renderGrid();
+  setTimeout(()=>{
+    document.getElementById('complete-time').textContent = 'Too many mistakes';
+    document.getElementById('complete-overlay').querySelector('.complete-jp').textContent='失敗';
+    document.getElementById('complete-overlay').querySelector('.complete-en').textContent='Puzzle Failed';
+    document.getElementById('complete-overlay').classList.add('show');
+  },800);
+}
+
+newGame();
+</script>
+</body>
+</html>
