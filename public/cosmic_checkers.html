@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cosmic Checkers</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Orbitron', monospace;
+    background: linear-gradient(135deg, #0c0c1e 0%, #1a1a2e 25%, #16213e 50%, #0f0f23 75%, #0a0a0f 100%);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+}
+
+.cosmic-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+
+.stars {
+    position: absolute; width: 100%; height: 100%;
+    background-image: 
+        radial-gradient(2px 2px at 20px 30px, #eee, transparent),
+        radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+        radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+        radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.6), transparent),
+        radial-gradient(2px 2px at 160px 30px, #ddd, transparent);
+    background-repeat: repeat;
+    background-size: 200px 100px;
+    animation: sparkle 20s linear infinite;
+}
+
+.nebula {
+    position: absolute; width: 100%; height: 100%;
+    background: 
+        radial-gradient(ellipse at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(255, 119, 198, 0.2) 0%, transparent 50%),
+        radial-gradient(ellipse at 40% 80%, rgba(119, 198, 255, 0.25) 0%, transparent 50%);
+    animation: nebula-drift 30s ease-in-out infinite alternate;
+}
+
+@keyframes sparkle { from { transform: translateX(0); } to { transform: translateX(-200px); } }
+@keyframes nebula-drift { 0% { transform: scale(1) rotate(0deg); } 100% { transform: scale(1.1) rotate(2deg); } }
+
+.container {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh; padding: 20px;
+    position: relative; z-index: 1;
+}
+
+.title {
+    color: #fff;
+    font-size: 2.8rem;
+    font-weight: 900;
+    text-align: center;
+    margin-bottom: 15px;
+    background: linear-gradient(45deg, #7877c6, #ff77c6, #77c6ff);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: glow-pulse 3s ease-in-out infinite alternate;
+    letter-spacing: 4px;
+}
+
+@keyframes glow-pulse {
+    0% { filter: drop-shadow(0 0 15px rgba(120, 119, 198, 0.6)); }
+    100% { filter: drop-shadow(0 0 25px rgba(255, 119, 198, 0.8)); }
+}
+
+.game-container {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 22px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* MODE SELECTOR */
+.mode-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    border: 1px solid rgba(120, 119, 198, 0.25);
+}
+
+.selector-row {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.selector-label {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    margin-right: 6px;
+}
+
+.mode-btn, .diff-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 6px 14px;
+    color: #fff;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    letter-spacing: 1px;
+}
+
+.mode-btn:hover, .diff-btn:hover {
+    background: rgba(120, 119, 198, 0.25);
+    box-shadow: 0 0 12px rgba(120, 119, 198, 0.5);
+}
+
+.mode-btn.active, .diff-btn.active {
+    background: linear-gradient(135deg, rgba(120, 119, 198, 0.45), rgba(255, 119, 198, 0.35));
+    border-color: rgba(255, 255, 255, 0.45);
+    box-shadow: 0 0 15px rgba(120, 119, 198, 0.6);
+}
+
+.diff-selector { transition: all 0.3s ease; }
+.diff-selector.hidden { display: none; }
+
+/* Player Status */
+.players-panel {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.player-card {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 10px 14px;
+    color: #fff;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.player-card.active.player-1 {
+    border-color: rgba(255, 119, 198, 0.9);
+    box-shadow: 0 0 25px rgba(255, 119, 198, 0.6);
+    background: rgba(255, 119, 198, 0.15);
+    transform: translateY(-2px);
+}
+
+.player-card.active.player-2 {
+    border-color: rgba(119, 198, 255, 0.9);
+    box-shadow: 0 0 25px rgba(119, 198, 255, 0.6);
+    background: rgba(119, 198, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.player-name {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ai-badge {
+    background: rgba(255, 215, 0, 0.25);
+    border: 1px solid rgba(255, 215, 0, 0.6);
+    color: #ffd700;
+    font-size: 0.55rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+    animation: ai-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ai-pulse {
+    0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.4); }
+    50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); }
+}
+
+.player-1 .player-name { color: #ff77c6; text-shadow: 0 0 10px rgba(255, 119, 198, 0.8); }
+.player-2 .player-name { color: #77c6ff; text-shadow: 0 0 10px rgba(119, 198, 255, 0.8); }
+
+.player-stats {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.player-stats .count {
+    font-weight: 900;
+    font-size: 0.95rem;
+    color: #fff;
+    margin-left: 3px;
+}
+
+.thinking-indicator {
+    display: none;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ffd700;
+    box-shadow: 0 0 10px #ffd700;
+    animation: thinking-blink 0.6s ease-in-out infinite;
+}
+
+.thinking-indicator.show { display: block; }
+
+@keyframes thinking-blink {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.3); }
+}
+
+/* Board */
+.board-wrapper {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 12px;
+    border-radius: 15px;
+    border: 2px solid rgba(120, 119, 198, 0.3);
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5), 0 0 40px rgba(120, 119, 198, 0.2);
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.board.ai-thinking {
+    pointer-events: none;
+    filter: brightness(0.85);
+}
+
+.square {
+    width: 58px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    position: relative;
+    transition: all 0.25s ease;
+    cursor: default;
+}
+
+.square.light {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.square.dark {
+    background: rgba(15, 15, 35, 0.6);
+    border: 1px solid rgba(120, 119, 198, 0.15);
+    cursor: pointer;
+}
+
+.square.dark::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at center, rgba(120, 119, 198, 0.1) 0%, transparent 60%);
+    border-radius: 6px;
+    pointer-events: none;
+}
+
+.square.valid-move {
+    background: rgba(99, 255, 99, 0.15);
+    border-color: rgba(99, 255, 99, 0.6);
+    box-shadow: inset 0 0 15px rgba(99, 255, 99, 0.4), 0 0 12px rgba(99, 255, 99, 0.4);
+    animation: pulse-move 1.5s ease-in-out infinite;
+}
+
+.square.valid-capture {
+    background: rgba(255, 200, 50, 0.2);
+    border-color: rgba(255, 200, 50, 0.8);
+    box-shadow: inset 0 0 15px rgba(255, 200, 50, 0.5), 0 0 15px rgba(255, 200, 50, 0.6);
+    animation: pulse-capture 1s ease-in-out infinite;
+}
+
+.square.ai-hint {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: rgba(255, 215, 0, 0.7);
+    box-shadow: 0 0 18px rgba(255, 215, 0, 0.6);
+    animation: ai-hint-pulse 0.5s ease-in-out 3;
+}
+
+@keyframes pulse-move {
+    0%, 100% { box-shadow: inset 0 0 15px rgba(99, 255, 99, 0.4), 0 0 12px rgba(99, 255, 99, 0.4); }
+    50% { box-shadow: inset 0 0 25px rgba(99, 255, 99, 0.6), 0 0 20px rgba(99, 255, 99, 0.7); }
+}
+
+@keyframes pulse-capture {
+    0%, 100% { box-shadow: inset 0 0 15px rgba(255, 200, 50, 0.5), 0 0 15px rgba(255, 200, 50, 0.6); transform: scale(1); }
+    50% { box-shadow: inset 0 0 25px rgba(255, 200, 50, 0.8), 0 0 25px rgba(255, 200, 50, 0.9); transform: scale(1.03); }
+}
+
+@keyframes ai-hint-pulse {
+    0%, 100% { box-shadow: 0 0 18px rgba(255, 215, 0, 0.6); }
+    50% { box-shadow: 0 0 30px rgba(255, 215, 0, 1); }
+}
+
+/* Pieces */
+.piece {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.piece::before {
+    content: '';
+    position: absolute; inset: 4px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.5), transparent 60%);
+    pointer-events: none;
+}
+
+.piece.p1 {
+    background: radial-gradient(circle at 35% 35%, #ff9bd6 0%, #ff77c6 30%, #c92a8d 70%, #6b1450 100%);
+    box-shadow: 
+        0 0 20px rgba(255, 119, 198, 0.7),
+        inset 0 -3px 8px rgba(0, 0, 0, 0.4),
+        inset 0 2px 4px rgba(255, 255, 255, 0.3);
+}
+
+.piece.p2 {
+    background: radial-gradient(circle at 35% 35%, #9bd6ff 0%, #77c6ff 30%, #2a8dc9 70%, #145069 100%);
+    box-shadow: 
+        0 0 20px rgba(119, 198, 255, 0.7),
+        inset 0 -3px 8px rgba(0, 0, 0, 0.4),
+        inset 0 2px 4px rgba(255, 255, 255, 0.3);
+}
+
+.piece.king::after {
+    content: '★';
+    position: absolute;
+    font-size: 1.5rem;
+    color: #fff;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.9), 0 0 15px rgba(255, 215, 0, 0.6);
+    z-index: 2;
+    animation: king-spin 4s linear infinite;
+}
+
+@keyframes king-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.piece:hover { transform: scale(1.1); }
+
+.piece.selected {
+    transform: scale(1.15);
+    animation: piece-glow 1s ease-in-out infinite alternate;
+}
+
+.piece.p1.selected {
+    box-shadow: 
+        0 0 35px rgba(255, 119, 198, 1),
+        0 0 60px rgba(255, 119, 198, 0.6),
+        inset 0 -3px 8px rgba(0, 0, 0, 0.4),
+        inset 0 2px 4px rgba(255, 255, 255, 0.5);
+}
+
+.piece.p2.selected {
+    box-shadow: 
+        0 0 35px rgba(119, 198, 255, 1),
+        0 0 60px rgba(119, 198, 255, 0.6),
+        inset 0 -3px 8px rgba(0, 0, 0, 0.4),
+        inset 0 2px 4px rgba(255, 255, 255, 0.5);
+}
+
+@keyframes piece-glow {
+    from { filter: brightness(1); }
+    to { filter: brightness(1.3); }
+}
+
+@keyframes capture-burst {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.8); opacity: 0.8; }
+    100% { transform: scale(0); opacity: 0; }
+}
+
+.piece.captured {
+    animation: capture-burst 0.5s ease-out forwards;
+    pointer-events: none;
+}
+
+@keyframes piece-move {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.piece.entering { animation: piece-move 0.4s ease-out; }
+
+/* Controls */
+.controls {
+    margin-top: 18px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.btn {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 9px 18px;
+    color: #fff;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+}
+
+.btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 15px rgba(120, 119, 198, 0.8);
+    transform: translateY(-2px);
+}
+
+.btn.muted {
+    background: rgba(255, 99, 99, 0.2);
+    border-color: rgba(255, 99, 99, 0.4);
+}
+
+.message-bar {
+    margin-top: 12px;
+    text-align: center;
+    color: #fff;
+    font-size: 0.85rem;
+    min-height: 22px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    letter-spacing: 1px;
+}
+
+/* Victory screen */
+.victory-screen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.victory-screen.show { opacity: 1; visibility: visible; }
+
+.victory-content {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 35px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 50px rgba(120, 119, 198, 0.8);
+    max-width: 90%;
+}
+
+.victory-title {
+    font-size: 2.2rem;
+    color: #fff;
+    margin-bottom: 20px;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+    animation: glow-pulse 2s ease-in-out infinite alternate;
+}
+
+@media (max-width: 600px) {
+    .square { width: 38px; height: 38px; }
+    .piece { width: 30px; height: 30px; }
+    .piece.king::after { font-size: 1rem; }
+    .title { font-size: 1.7rem; }
+    .game-container { padding: 14px; }
+    .btn { padding: 7px 12px; font-size: 0.7rem; }
+    .mode-btn, .diff-btn { padding: 5px 10px; font-size: 0.7rem; }
+    .player-card { padding: 7px 9px; }
+    .player-name { font-size: 0.75rem; }
+}
+</style>
+</head>
+<body>
+<div class="cosmic-bg">
+    <div class="stars"></div>
+    <div class="nebula"></div>
+</div>
+
+<div class="container">
+    <h1 class="title">COSMIC CHECKERS</h1>
+    
+    <div class="game-container">
+        <!-- MODE & DIFFICULTY SELECTOR -->
+        <div class="mode-panel">
+            <div class="selector-row">
+                <span class="selector-label">MODE</span>
+                <button class="mode-btn active" data-mode="human">👥 2 PLAYERS</button>
+                <button class="mode-btn" data-mode="ai">🤖 VS AI</button>
+            </div>
+            <div class="selector-row diff-selector hidden" id="diffSelector">
+                <span class="selector-label">AI LEVEL</span>
+                <button class="diff-btn active" data-diff="easy">🌱 EASY</button>
+                <button class="diff-btn" data-diff="medium">⚡ MEDIUM</button>
+                <button class="diff-btn" data-diff="hard">🔥 HARD</button>
+            </div>
+        </div>
+        
+        <div class="players-panel">
+            <div class="player-card player-1 active" id="player1Card">
+                <div class="player-name">◆ NEBULA <span class="ai-badge" id="p1AiBadge" style="display:none;">AI</span></div>
+                <div class="player-stats">Captured: <span class="count" id="p1Captured">0</span> · Kings: <span class="count" id="p1Kings">0</span></div>
+                <div class="thinking-indicator" id="p1Thinking"></div>
+            </div>
+            <div class="player-card player-2" id="player2Card">
+                <div class="player-name">◆ STELLAR <span class="ai-badge" id="p2AiBadge" style="display:none;">AI</span></div>
+                <div class="player-stats">Captured: <span class="count" id="p2Captured">0</span> · Kings: <span class="count" id="p2Kings">0</span></div>
+                <div class="thinking-indicator" id="p2Thinking"></div>
+            </div>
+        </div>
+        
+        <div class="board-wrapper">
+            <div class="board" id="board"></div>
+        </div>
+        
+        <div class="message-bar" id="messageBar">Nebula's turn — select a piece</div>
+        
+        <div class="controls">
+            <button class="btn" onclick="newGame()">⟳ New Game</button>
+            <button class="btn" onclick="undoMove()">↶ Undo</button>
+            <button class="btn" id="soundToggle" onclick="toggleSound()">🔊 Sound</button>
+        </div>
+    </div>
+</div>
+
+<div class="victory-screen" id="victoryScreen">
+    <div class="victory-content">
+        <h2 class="victory-title" id="victoryTitle">🌟 VICTORY! 🌟</h2>
+        <p style="color: #fff; font-size: 1.1rem; margin-bottom: 12px;" id="victoryMessage"></p>
+        <p style="color: #ccc; margin-bottom: 22px;" id="victoryStats"></p>
+        <button class="btn" onclick="newGame()">Play Again</button>
+    </div>
+</div>
+
+<script>
+// ============ GAME STATE ============
+let board = [];
+let currentPlayer = 1;
+let selectedPiece = null;
+let validMoves = [];
+let mustContinueJump = false;
+let history = [];
+let captured = { 1: 0, 2: 0 };
+let kings = { 1: 0, 2: 0 };
+let soundEnabled = true;
+let audioCtx = null;
+let gameOver = false;
+
+// AI settings
+let gameMode = 'human'; // 'human' or 'ai'
+let aiDifficulty = 'easy'; // 'easy', 'medium', 'hard'
+let aiPlayer = 2; // AI plays as Stellar (player 2)
+let aiThinking = false;
+
+// ============ COSMIC SOUND SYSTEM ============
+function initAudio() {
+    if (!audioCtx) {
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        catch (e) {}
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playBlip(freq = 440, duration = 0.15) {
+    if (!soundEnabled || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass'; filter.frequency.value = 2500;
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.4, audioCtx.currentTime + duration * 0.7);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + duration);
+}
+
+function playMove() {
+    if (!soundEnabled || !audioCtx) return;
+    [440, 660].forEach((f, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = i === 0 ? 'sine' : 'triangle';
+        osc.frequency.value = f;
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.1 / (i + 1), audioCtx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+    });
+}
+
+function playCapture() {
+    if (!soundEnabled || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'bandpass'; filter.frequency.value = 800; filter.Q.value = 5;
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.4);
+    gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+}
+
+function playKingMade() {
+    if (!soundEnabled || !audioCtx) return;
+    const notes = [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((freq, i) => {
+        setTimeout(() => {
+            const osc = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine'; osc2.type = 'triangle';
+            osc.frequency.value = freq; osc2.frequency.value = freq * 2;
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            osc.connect(gain); osc2.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc2.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+            osc2.stop(audioCtx.currentTime + 0.5);
+        }, i * 80);
+    });
+}
+
+function playError() {
+    if (!soundEnabled || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+    osc.frequency.linearRampToValueAtTime(90, audioCtx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+}
+
+function playVictory() {
+    if (!soundEnabled || !audioCtx) return;
+    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1568.00];
+    notes.forEach((freq, i) => {
+        setTimeout(() => {
+            const osc = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine'; osc2.type = 'triangle';
+            osc.frequency.value = freq; osc2.frequency.value = freq * 1.5;
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.9);
+            osc.connect(gain); osc2.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc2.start();
+            osc.stop(audioCtx.currentTime + 0.9);
+            osc2.stop(audioCtx.currentTime + 0.9);
+        }, i * 130);
+    });
+}
+
+// AI thinking sound - subtle pulsing tone
+function playAIThinking() {
+    if (!soundEnabled || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 220;
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+}
+
+function speak(text, pitch = 0.7, rate = 0.9) {
+    if (!soundEnabled || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.pitch = pitch; u.rate = rate; u.volume = 0.65;
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => 
+        v.name.includes('Daniel') || v.name.includes('Alex') || 
+        v.name.includes('Google UK English Male') || v.name.includes('Male'));
+    if (preferred) u.voice = preferred;
+    window.speechSynthesis.speak(u);
+}
+
+// ============ BOARD SETUP ============
+function initBoard() {
+    board = Array(8).fill(null).map(() => Array(8).fill(0));
+    for (let r = 0; r < 3; r++)
+        for (let c = 0; c < 8; c++)
+            if ((r + c) % 2 === 1) board[r][c] = 3;
+    for (let r = 5; r < 8; r++)
+        for (let c = 0; c < 8; c++)
+            if ((r + c) % 2 === 1) board[r][c] = 1;
+}
+
+function renderBoard() {
+    const boardEl = document.getElementById('board');
+    boardEl.innerHTML = '';
+    boardEl.classList.toggle('ai-thinking', aiThinking);
+    
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            const sq = document.createElement('div');
+            sq.className = 'square ' + ((r + c) % 2 === 0 ? 'light' : 'dark');
+            sq.dataset.row = r;
+            sq.dataset.col = c;
+            
+            const piece = board[r][c];
+            if (piece !== 0) {
+                const p = document.createElement('div');
+                const isP1 = piece === 1 || piece === 2;
+                const isKing = piece === 2 || piece === 4;
+                p.className = 'piece ' + (isP1 ? 'p1' : 'p2') + (isKing ? ' king' : '');
+                p.dataset.row = r;
+                p.dataset.col = c;
+                if (selectedPiece && selectedPiece.row === r && selectedPiece.col === c) {
+                    p.classList.add('selected');
+                }
+                sq.appendChild(p);
+            }
+            
+            if (validMoves.some(m => m.toRow === r && m.toCol === c)) {
+                const move = validMoves.find(m => m.toRow === r && m.toCol === c);
+                sq.classList.add(move.captures.length > 0 ? 'valid-capture' : 'valid-move');
+            }
+            
+            sq.addEventListener('click', () => handleSquareClick(r, c));
+            boardEl.appendChild(sq);
+        }
+    }
+    updateStats();
+}
+
+function updateStats() {
+    document.getElementById('p1Captured').textContent = captured[1];
+    document.getElementById('p2Captured').textContent = captured[2];
+    document.getElementById('p1Kings').textContent = kings[1];
+    document.getElementById('p2Kings').textContent = kings[2];
+    document.getElementById('player1Card').classList.toggle('active', currentPlayer === 1);
+    document.getElementById('player2Card').classList.toggle('active', currentPlayer === 2);
+}
+
+// ============ MOVE LOGIC (works on any board state) ============
+function isPlayerPiece(piece, player) {
+    if (player === 1) return piece === 1 || piece === 2;
+    return piece === 3 || piece === 4;
+}
+
+function isKing(piece) { return piece === 2 || piece === 4; }
+
+function getMoveDirections(piece) {
+    if (piece === 2 || piece === 4) return [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+    if (piece === 1) return [[-1, -1], [-1, 1]];
+    if (piece === 3) return [[1, -1], [1, 1]];
+    return [];
+}
+
+function getValidMovesForBoard(boardState, row, col) {
+    const piece = boardState[row][col];
+    if (piece === 0) return [];
+    const player = (piece === 1 || piece === 2) ? 1 : 2;
+    const directions = getMoveDirections(piece);
+    const moves = [];
+    
+    // Captures
+    for (const [dr, dc] of directions) {
+        const midR = row + dr, midC = col + dc;
+        const endR = row + 2 * dr, endC = col + 2 * dc;
+        if (endR >= 0 && endR < 8 && endC >= 0 && endC < 8) {
+            const midPiece = boardState[midR][midC];
+            if (midPiece !== 0 && !isPlayerPiece(midPiece, player) && boardState[endR][endC] === 0) {
+                moves.push({
+                    fromRow: row, fromCol: col,
+                    toRow: endR, toCol: endC,
+                    captures: [{ row: midR, col: midC }]
+                });
+            }
+        }
+    }
+    
+    if (moves.length > 0) return moves;
+    
+    // Regular moves
+    for (const [dr, dc] of directions) {
+        const newR = row + dr, newC = col + dc;
+        if (newR >= 0 && newR < 8 && newC >= 0 && newC < 8 && boardState[newR][newC] === 0) {
+            moves.push({
+                fromRow: row, fromCol: col,
+                toRow: newR, toCol: newC,
+                captures: []
+            });
+        }
+    }
+    return moves;
+}
+
+function getAllMovesForBoard(boardState, player) {
+    const allMoves = [];
+    let hasCaptures = false;
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            if (isPlayerPiece(boardState[r][c], player)) {
+                const moves = getValidMovesForBoard(boardState, r, c);
+                if (moves.some(m => m.captures.length > 0)) hasCaptures = true;
+                allMoves.push(...moves);
+            }
+        }
+    }
+    if (hasCaptures) return allMoves.filter(m => m.captures.length > 0);
+    return allMoves;
+}
+
+// Convenience wrappers for the live game board
+function getValidMoves(row, col) { return getValidMovesForBoard(board, row, col); }
+function getAllPlayerMoves(player) { return getAllMovesForBoard(board, player); }
+
+// ============ AI ENGINE ============
+function simulateMove(boardState, move) {
+    const newBoard = boardState.map(row => [...row]);
+    let piece = newBoard[move.fromRow][move.fromCol];
+    newBoard[move.fromRow][move.fromCol] = 0;
+    
+    // Promotion
+    if (piece === 1 && move.toRow === 0) piece = 2;
+    if (piece === 3 && move.toRow === 7) piece = 4;
+    newBoard[move.toRow][move.toCol] = piece;
+    
+    for (const cap of move.captures) {
+        newBoard[cap.row][cap.col] = 0;
+    }
+    return newBoard;
+}
+
+// Get chain jumps recursively for accurate evaluation
+function getJumpSequencesFromBoard(boardState, row, col, prevCaptures = []) {
+    const piece = boardState[row][col];
+    if (piece === 0) return [{ row, col, captures: prevCaptures, finalBoard: boardState }];
+    
+    const player = (piece === 1 || piece === 2) ? 1 : 2;
+    const directions = getMoveDirections(piece);
+    const sequences = [];
+    let foundJump = false;
+    
+    for (const [dr, dc] of directions) {
+        const midR = row + dr, midC = col + dc;
+        const endR = row + 2 * dr, endC = col + 2 * dc;
+        if (endR >= 0 && endR < 8 && endC >= 0 && endC < 8) {
+            const midPiece = boardState[midR][midC];
+            if (midPiece !== 0 && !isPlayerPiece(midPiece, player) && boardState[endR][endC] === 0) {
+                foundJump = true;
+                const move = {
+                    fromRow: row, fromCol: col, toRow: endR, toCol: endC,
+                    captures: [{ row: midR, col: midC }]
+                };
+                const newBoard = simulateMove(boardState, move);
+                const allCaptures = [...prevCaptures, { row: midR, col: midC }];
+                
+                // Check if piece was promoted - if so, stop the chain
+                const newPiece = newBoard[endR][endC];
+                if (newPiece !== piece && (newPiece === 2 || newPiece === 4)) {
+                    sequences.push({ row: endR, col: endC, captures: allCaptures, finalBoard: newBoard });
+                } else {
+                    const subSequences = getJumpSequencesFromBoard(newBoard, endR, endC, allCaptures);
+                    sequences.push(...subSequences);
+                }
+            }
+        }
+    }
+    
+    if (!foundJump && prevCaptures.length > 0) {
+        return [{ row, col, captures: prevCaptures, finalBoard: boardState }];
+    }
+    return sequences;
+}
+
+// Position evaluation - positive favors AI (player 2)
+function evaluate(boardState) {
+    let score = 0;
+    let p1Count = 0, p2Count = 0;
+    
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            const piece = boardState[r][c];
+            if (piece === 0) continue;
+            
+            const isP1 = piece === 1 || piece === 2;
+            const isKingPiece = piece === 2 || piece === 4;
+            const value = isKingPiece ? 350 : 100;
+            
+            if (isP1) p1Count++; else p2Count++;
+            
+            // Forward progress bonus (encourage advancement)
+            let posBonus = 0;
+            if (!isKingPiece) {
+                if (isP1) posBonus = (7 - r) * 4;
+                else posBonus = r * 4;
+            }
+            
+            // Center control bonus
+            if (c >= 2 && c <= 5 && r >= 2 && r <= 5) posBonus += 8;
+            
+            // Edge safety (edges can't be captured from outside)
+            if (c === 0 || c === 7) posBonus += 5;
+            
+            // Back row defense bonus (prevents enemy kings)
+            if (isP1 && r === 7) posBonus += 12;
+            if (!isP1 && r === 0) posBonus += 12;
+            
+            if (isP1) score -= (value + posBonus);
+            else score += (value + posBonus);
+        }
+    }
+    
+    // Terminal states
+    if (p1Count === 0) score += 100000;
+    if (p2Count === 0) score -= 100000;
+    
+    return score;
+}
+
+// Minimax with alpha-beta pruning
+function minimax(boardState, depth, alpha, beta, maximizing, currentP) {
+    const moves = getAllMovesForBoard(boardState, currentP);
+    
+    if (depth === 0 || moves.length === 0) {
+        let score = evaluate(boardState);
+        // If current player has no moves, they lose
+        if (moves.length === 0) {
+            score += currentP === 2 ? -50000 : 50000;
+        }
+        return { score, move: null };
+    }
+    
+    let bestMove = moves[0];
+    
+    if (maximizing) {
+        let maxScore = -Infinity;
+        for (const move of moves) {
+            const newBoard = simulateMove(boardState, move);
+            const result = minimax(newBoard, depth - 1, alpha, beta, false, currentP === 1 ? 2 : 1);
+            if (result.score > maxScore) {
+                maxScore = result.score;
+                bestMove = move;
+            }
+            alpha = Math.max(alpha, result.score);
+            if (beta <= alpha) break;
+        }
+        return { score: maxScore, move: bestMove };
+    } else {
+        let minScore = Infinity;
+        for (const move of moves) {
+            const newBoard = simulateMove(boardState, move);
+            const result = minimax(newBoard, depth - 1, alpha, beta, true, currentP === 1 ? 2 : 1);
+            if (result.score < minScore) {
+                minScore = result.score;
+                bestMove = move;
+            }
+            beta = Math.min(beta, result.score);
+            if (beta <= alpha) break;
+        }
+        return { score: minScore, move: bestMove };
+    }
+}
+
+function chooseAIMove(availableMoves) {
+    if (availableMoves.length === 0) return null;
+    if (availableMoves.length === 1) return availableMoves[0];
+    
+    if (aiDifficulty === 'easy') {
+        // Easy: prefer captures, but sometimes random
+        const captures = availableMoves.filter(m => m.captures.length > 0);
+        if (captures.length > 0 && Math.random() < 0.85) {
+            return captures[Math.floor(Math.random() * captures.length)];
+        }
+        return availableMoves[Math.floor(Math.random() * availableMoves.length)];
+    }
+    
+    const depth = aiDifficulty === 'medium' ? 4 : 6;
+    
+    // Score each top-level move
+    let bestMove = availableMoves[0];
+    let bestScore = -Infinity;
+    
+    for (const move of availableMoves) {
+        const newBoard = simulateMove(board, move);
+        const result = minimax(newBoard, depth - 1, -Infinity, Infinity, false, 1);
+        // Small randomness to vary play when scores are close
+        const score = result.score + (Math.random() * 2 - 1);
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+        }
+    }
+    return bestMove;
+}
+
+function triggerAIMove() {
+    if (gameMode !== 'ai' || currentPlayer !== aiPlayer || gameOver) return;
+    
+    aiThinking = true;
+    document.getElementById('p2Thinking').classList.add('show');
+    document.getElementById('board').classList.add('ai-thinking');
+    setMessage('Stellar is calculating cosmic strategy...');
+    playAIThinking();
+    
+    // Use setTimeout to let UI update before heavy computation
+    setTimeout(() => {
+        let move;
+        if (mustContinueJump && selectedPiece && validMoves.length > 0) {
+            move = chooseAIMove(validMoves);
+        } else {
+            const allMoves = getAllPlayerMoves(aiPlayer);
+            move = chooseAIMove(allMoves);
+        }
+        
+        aiThinking = false;
+        document.getElementById('p2Thinking').classList.remove('show');
+        document.getElementById('board').classList.remove('ai-thinking');
+        
+        if (move) {
+            // Visually show AI's selected piece and move briefly
+            selectedPiece = { row: move.fromRow, col: move.fromCol };
+            validMoves = [move];
+            renderBoard();
+            
+            // Highlight AI's choice
+            const targetSq = document.querySelector(`[data-row="${move.toRow}"][data-col="${move.toCol}"]`);
+            if (targetSq) targetSq.classList.add('ai-hint');
+            
+            setTimeout(() => executeMove(move), 600);
+        }
+    }, aiDifficulty === 'easy' ? 500 : aiDifficulty === 'medium' ? 700 : 900);
+}
+
+// ============ GAME FLOW ============
+function handleSquareClick(row, col) {
+    if (aiThinking || gameOver) return;
+    if (gameMode === 'ai' && currentPlayer === aiPlayer) return; // ignore clicks during AI turn
+    
+    initAudio();
+    const piece = board[row][col];
+    
+    if (selectedPiece) {
+        const move = validMoves.find(m => m.toRow === row && m.toCol === col);
+        if (move) { executeMove(move); return; }
+        
+        if (!mustContinueJump && isPlayerPiece(piece, currentPlayer)) {
+            selectPiece(row, col); return;
+        }
+        
+        if (!mustContinueJump) {
+            playError();
+            selectedPiece = null;
+            validMoves = [];
+            renderBoard();
+            setMessage(getPlayerName(currentPlayer) + "'s turn — select a piece");
+        }
+        return;
+    }
+    
+    if (isPlayerPiece(piece, currentPlayer)) {
+        selectPiece(row, col);
+    } else if (piece !== 0) {
+        playError();
+        setMessage("That's not your piece, space traveler");
+    }
+}
+
+function selectPiece(row, col) {
+    const allMoves = getAllPlayerMoves(currentPlayer);
+    const hasCaptures = allMoves.some(m => m.captures.length > 0);
+    
+    let moves = getValidMoves(row, col);
+    if (hasCaptures) {
+        moves = moves.filter(m => m.captures.length > 0);
+        if (moves.length === 0) {
+            playError();
+            setMessage("Capture available — choose a piece that can capture");
+            return;
+        }
+    }
+    
+    if (moves.length === 0) {
+        playError();
+        setMessage("That piece has no valid moves");
+        return;
+    }
+    
+    selectedPiece = { row, col };
+    validMoves = moves;
+    playBlip(currentPlayer === 1 ? 500 : 600);
+    renderBoard();
+    setMessage(`${getPlayerName(currentPlayer)} — select a destination`);
+}
+
+function executeMove(move) {
+    // Save for undo
+    history.push({
+        board: board.map(row => [...row]),
+        currentPlayer, mustContinueJump,
+        captured: { ...captured },
+        kings: { ...kings }
+    });
+    
+    const piece = board[move.fromRow][move.fromCol];
+    board[move.fromRow][move.fromCol] = 0;
+    board[move.toRow][move.toCol] = piece;
+    
+    if (move.captures.length > 0) {
+        for (const cap of move.captures) {
+            const capturedPiece = board[cap.row][cap.col];
+            if (isKing(capturedPiece)) kings[currentPlayer === 1 ? 2 : 1]--;
+            board[cap.row][cap.col] = 0;
+            captured[currentPlayer]++;
+            const sq = document.querySelector(`[data-row="${cap.row}"][data-col="${cap.col}"]`);
+            const capPiece = sq && sq.querySelector('.piece');
+            if (capPiece) capPiece.classList.add('captured');
+        }
+        playCapture();
+        speak('Capture', 0.6, 1);
+    } else {
+        playMove();
+    }
+    
+    let promotedToKing = false;
+    if (piece === 1 && move.toRow === 0) {
+        board[move.toRow][move.toCol] = 2;
+        kings[1]++;
+        promotedToKing = true;
+    } else if (piece === 3 && move.toRow === 7) {
+        board[move.toRow][move.toCol] = 4;
+        kings[2]++;
+        promotedToKing = true;
+    }
+    
+    selectedPiece = null;
+    validMoves = [];
+    
+    setTimeout(() => {
+        if (promotedToKing) {
+            playKingMade();
+            speak(getPlayerName(currentPlayer) + ' crowned a king!', 0.7, 0.9);
+        }
+        
+        // Chain jumps
+        if (move.captures.length > 0) {
+            const chainMoves = getValidMoves(move.toRow, move.toCol);
+            const chainCaptures = chainMoves.filter(m => m.captures.length > 0);
+            
+            if (chainCaptures.length > 0 && !promotedToKing) {
+                selectedPiece = { row: move.toRow, col: move.toCol };
+                validMoves = chainCaptures;
+                mustContinueJump = true;
+                renderBoard();
+                setMessage(`${getPlayerName(currentPlayer)} — chain jump available!`);
+                speak('Chain jump', 0.7, 1);
+                
+                // If AI's turn, continue the chain
+                if (gameMode === 'ai' && currentPlayer === aiPlayer) {
+                    setTimeout(triggerAIMove, 700);
+                }
+                return;
+            }
+        }
+        
+        mustContinueJump = false;
+        switchPlayer();
+        renderBoard();
+        checkWinCondition();
+        
+        if (!gameOver && gameMode === 'ai' && currentPlayer === aiPlayer) {
+            setTimeout(triggerAIMove, 500);
+        }
+    }, move.captures.length > 0 ? 400 : 100);
+    
+    renderBoard();
+}
+
+function switchPlayer() {
+    currentPlayer = currentPlayer === 1 ? 2 : 1;
+    const playerName = getPlayerName(currentPlayer);
+    if (gameMode === 'ai' && currentPlayer === aiPlayer) {
+        setMessage(playerName + ' (AI) is preparing...');
+    } else {
+        setMessage(playerName + "'s turn — select a piece");
+    }
+}
+
+function getPlayerName(p) { return p === 1 ? 'Nebula' : 'Stellar'; }
+
+function checkWinCondition() {
+    const moves = getAllPlayerMoves(currentPlayer);
+    let p1Count = 0, p2Count = 0;
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            if (isPlayerPiece(board[r][c], 1)) p1Count++;
+            if (isPlayerPiece(board[r][c], 2)) p2Count++;
+        }
+    }
+    let winner = null;
+    if (p1Count === 0) winner = 2;
+    else if (p2Count === 0) winner = 1;
+    else if (moves.length === 0) winner = currentPlayer === 1 ? 2 : 1;
+    
+    if (winner) {
+        gameOver = true;
+        setTimeout(() => showVictory(winner), 500);
+    }
+}
+
+function showVictory(winner) {
+    const winnerName = getPlayerName(winner);
+    const isAIWinner = gameMode === 'ai' && winner === aiPlayer;
+    const isAILoser = gameMode === 'ai' && winner !== aiPlayer;
+    
+    let titleText = winner === 1 ? '🌸 NEBULA TRIUMPHS! 🌸' : '✨ STELLAR PREVAILS! ✨';
+    let msgText = `${winnerName} has conquered the cosmic battlefield!`;
+    
+    if (isAIWinner) {
+        titleText = '🤖 AI WINS! 🤖';
+        msgText = `The cosmic AI has outmaneuvered you!`;
+    } else if (isAILoser) {
+        titleText = '🏆 YOU WIN! 🏆';
+        msgText = `You have defeated the cosmic AI!`;
+    }
+    
+    document.getElementById('victoryTitle').textContent = titleText;
+    document.getElementById('victoryMessage').textContent = msgText;
+    document.getElementById('victoryStats').textContent = 
+        `Pieces Captured: ${captured[winner]} · Kings Crowned: ${kings[winner]}`;
+    document.getElementById('victoryScreen').classList.add('show');
+    playVictory();
+    setTimeout(() => {
+        if (isAIWinner) speak('The cosmic AI prevails', 0.7, 0.85);
+        else if (isAILoser) speak('You have defeated the AI', 0.7, 0.85);
+        else speak(`${winnerName} prevails across the cosmos`, 0.7, 0.85);
+    }, 800);
+}
+
+function hideVictory() { document.getElementById('victoryScreen').classList.remove('show'); }
+
+function setMessage(text) { document.getElementById('messageBar').textContent = text; }
+
+// ============ CONTROLS ============
+function newGame() {
+    initAudio();
+    initBoard();
+    currentPlayer = 1;
+    selectedPiece = null;
+    validMoves = [];
+    mustContinueJump = false;
+    history = [];
+    captured = { 1: 0, 2: 0 };
+    kings = { 1: 0, 2: 0 };
+    gameOver = false;
+    aiThinking = false;
+    hideVictory();
+    renderBoard();
+    setMessage("Nebula's turn — select a piece");
+    
+    if (gameMode === 'ai') {
+        speak('New cosmic battle. You are Nebula. AI is Stellar.', 0.7, 0.9);
+    } else {
+        speak('New cosmic battle begins', 0.7, 0.9);
+    }
+}
+
+function undoMove() {
+    initAudio();
+    if (aiThinking) return;
+    if (history.length === 0) {
+        playError();
+        setMessage('No moves to undo');
+        return;
+    }
+    
+    // In AI mode, undo two moves (player's + AI's response)
+    let undoCount = (gameMode === 'ai' && history.length >= 2 && !mustContinueJump) ? 2 : 1;
+    
+    for (let i = 0; i < undoCount && history.length > 0; i++) {
+        const prev = history.pop();
+        board = prev.board;
+        currentPlayer = prev.currentPlayer;
+        captured = prev.captured;
+        kings = prev.kings;
+        mustContinueJump = prev.mustContinueJump || false;
+    }
+    
+    selectedPiece = null;
+    validMoves = [];
+    gameOver = false;
+    playBlip(350);
+    renderBoard();
+    setMessage(getPlayerName(currentPlayer) + "'s turn — select a piece");
+}
+
+function toggleSound() {
+    soundEnabled = !soundEnabled;
+    const btn = document.getElementById('soundToggle');
+    if (soundEnabled) {
+        btn.innerHTML = '🔊 Sound';
+        btn.classList.remove('muted');
+        initAudio();
+        playBlip(600);
+        speak('Sound activated', 0.7, 0.9);
+    } else {
+        btn.innerHTML = '🔇 Muted';
+        btn.classList.add('muted');
+        window.speechSynthesis.cancel();
+    }
+}
+
+function setMode(mode) {
+    if (aiThinking) return;
+    gameMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    document.getElementById('diffSelector').classList.toggle('hidden', mode !== 'ai');
+    document.getElementById('p2AiBadge').style.display = mode === 'ai' ? 'inline-block' : 'none';
+    newGame();
+}
+
+function setDifficulty(diff) {
+    if (aiThinking) return;
+    aiDifficulty = diff;
+    document.querySelectorAll('.diff-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.diff === diff);
+    });
+    const diffName = diff.charAt(0).toUpperCase() + diff.slice(1);
+    setMessage(`AI difficulty: ${diffName}`);
+    speak('Difficulty ' + diff, 0.7, 0.95);
+}
+
+// ============ INIT ============
+document.addEventListener('DOMContentLoaded', () => {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = () => {};
+    }
+    
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => setMode(btn.dataset.mode));
+    });
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+        btn.addEventListener('click', () => setDifficulty(btn.dataset.diff));
+    });
+    
+    newGame();
+});
+</script>
+</body>
+</html>
