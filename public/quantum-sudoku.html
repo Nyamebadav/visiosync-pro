@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Quantum Carousel Sudoku — Medase Unitelle</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;overflow-x:hidden}</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+
+function isValid(b, r, c, n) {
+  for (let i = 0; i < 9; i++) if (b[r][i] === n || b[i][c] === n) return false;
+  const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
+  for (let i=br; i<br+3; i++) for (let j=bc; j<bc+3; j++) if (b[i][j]===n) return false;
+  return true;
+}
+function solve(b) {
+  for (let r=0; r<9; r++) for (let c=0; c<9; c++) {
+    if (b[r][c]===0) {
+      for (const n of [1,2,3,4,5,6,7,8,9].sort(()=>Math.random()-0.5)) {
+        if (isValid(b,r,c,n)) { b[r][c]=n; if(solve(b)) return true; b[r][c]=0; }
+      }
+      return false;
+    }
+  }
+  return true;
+}
+function makeGame(clues=22) {
+  const sol=Array(9).fill(0).map(()=>Array(9).fill(0));
+  solve(sol);
+  const puz=sol.map(r=>[...r]);
+  let rem=0; const done=new Set();
+  while (rem<81-clues) {
+    const r=Math.floor(Math.random()*9), c=Math.floor(Math.random()*9), k=`${r}${c}`;
+    if (puz[r][c]!==0&&!done.has(k)) { done.add(k); puz[r][c]=0; rem++; }
+  }
+  return { puz, sol };
+}
+
+const Z = [
+  {h:'#00f5ff',r:'0,245,255',  n:'CYAN'},
+  {h:'#ff00e5',r:'255,0,229',  n:'MAGENTA'},
+  {h:'#ffe600',r:'255,230,0',  n:'GOLD'},
+  {h:'#00ff88',r:'0,255,136',  n:'JADE'},
+  {h:'#ff6200',r:'255,98,0',   n:'PLASMA'},
+  {h:'#9b00ff',r:'155,0,255',  n:'VIOLET'},
+  {h:'#ff0055',r:'255,0,85',   n:'CRIMSON'},
+  {h:'#00aaff',r:'0,170,255',  n:'AZURE'},
+  {h:'#39ff14',r:'57,255,20',  n:'NEON'},
+];
+const box=(r,c)=>Math.floor(r/3)*3+Math.floor(c/3);
+const CLUES={NOVICE:42,MEDIUM:35,HARD:28,EXPERT:22};
+
+function Waveform({ active, color }) {
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:2,height:18,width:48}}>
+      {Array.from({length:9},(_,i)=>(
+        <div key={i} style={{
+          width:3, borderRadius:3,
+          background: active ? Z[i%9].h : color+'44',
+          minHeight:3,
+          boxShadow: active ? `0 0 4px ${Z[i%9].h}` : 'none',
+          animation: active ? `wave-bar ${0.25+i*0.07}s ease-in-out infinite alternate` : 'none',
+          transition:'background 0.3s',
+        }}/>
+      ))}
+    </div>
+  );
+}
+
+const PARTICLES = Array.from({length:45},(_,i)=>({
+  id:i, x:Math.random()*100, y:Math.random()*100,
+  s:Math.random()*2.5+0.5, c:Z[i%9].h,
+  d:Math.random()*9+4, dl:Math.random()*7,
+}));
+function Particles() {
+  return (
+    <div style={{position:'fixed',inset:0,pointerEvents:'none',overflow:'hidden',zIndex:0}}>
+      {PARTICLES.map(p=>(
+        <div key={p.id} style={{
+          position:'absolute',left:`${p.x}%`,top:`${p.y}%`,
+          width:p.s,height:p.s,borderRadius:'50%',background:p.c,
+          boxShadow:`0 0 ${p.s*5}px ${p.c}`,
+          animation:`drift ${p.d}s ${p.dl}s ease-in-out infinite alternate`,opacity:0.55,
+        }}/>
+      ))}
+    </div>
+  );
+}
+
+const CONFETTI = Array.from({length:110},(_,i)=>({
+  id:i, x:Math.random()*100, c:Z[i%9].h,
+  s:Math.random()*9+3, dl:Math.random()*2.5, d:Math.random()*3+2,
+}));
+function Confetti() {
+  return (
+    <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:500}}>
+      {CONFETTI.map(p=>(
+        <div key={p.id} style={{
+          position:'absolute',left:`${p.x}%`,top:'-20px',
+          width:p.s,height:p.s*0.4,background:p.c,
+          boxShadow:`0 0 8px ${p.c}`,
+          animation:`confetti-fall ${p.d}s ${p.dl}s ease-in forwards`,borderRadius:2,
+        }}/>
+      ))}
+    </div>
+  );
+}
+
+function VoiceBubble({ text, active }) {
+  if (!text && !active) return null;
+  return (
+    <div style={{
+      position:'fixed', bottom:100, left:'50%', transform:'translateX(-50%)',
+      zIndex:200, pointerEvents:'none',
+      background:'linear-gradient(135deg,rgba(0,0,20,0.9),rgba(0,10,40,0.95))',
+      border:'1px solid #00f5ff66',
+      borderRadius:30, padding:'10px 22px',
+      backdropFilter:'blur(12px)',
+      boxShadow:'0 0 30px rgba(0,245,255,0.3)',
+      display:'flex', alignItems:'center', gap:12,
+      animation:'bubble-in 0.2s cubic-bezier(0.34,1.56,0.64,1)',
+    }}>
+      <Waveform active={active} color="#00f5ff"/>
+      {text && (
+        <div style={{color:'#00f5ff',fontFamily:'Rajdhani',fontWeight:700,fontSize:15,letterSpacing:'0.1em'}}>
+          "{text}"
+        </div>
+      )}
+      {!text && active && (
+        <div style={{color:'#ffffff66',fontFamily:'Rajdhani',fontSize:12,letterSpacing:'0.2em'}}>
+          LISTENING…
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VoiceLegend({ visible }) {
+  const cmds=[
+    ['1 – 9','Place number'],['erase / clear','Remove number'],
+    ['hint','Get a hint'],['spin','Rotate board'],
+    ['new game','New puzzle'],['up/down/left/right','Navigate cells'],
+    ['pause','Pause timer'],
+  ];
+  return (
+    <div style={{
+      position:'fixed', right:16, top:'50%', transform:'translateY(-50%)',
+      background:'rgba(0,0,15,0.92)', border:'1px solid #ffffff11',
+      borderRadius:12, padding:'14px 16px', zIndex:100,
+      backdropFilter:'blur(12px)',
+      opacity: visible?1:0, pointerEvents: visible?'auto':'none',
+      transition:'opacity 0.3s',
+    }}>
+      <div style={{color:'#00f5ff',fontSize:9,letterSpacing:'0.4em',marginBottom:10,fontFamily:'Orbitron'}}>VOICE COMMANDS</div>
+      {cmds.map(([cmd,desc])=>(
+        <div key={cmd} style={{display:'flex',gap:10,marginBottom:5,alignItems:'center'}}>
+          <span style={{color:'#ffe600',fontSize:10,fontFamily:'Orbitron',minWidth:80}}>{cmd}</span>
+          <span style={{color:'#ffffff44',fontFamily:'Rajdhani',fontSize:12}}>{desc}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function QuantumSudokuV2() {
+  const [puz, setPuz]   = useState(null);
+  const [sol, setSol]   = useState(null);
+  const [board, setBoard] = useState(null);
+  const [sel, setSel]   = useState(null);
+  const [errs, setErrs] = useState(new Set());
+  const [good, setGood] = useState(new Set());
+  const [done, setDone] = useState(false);
+  const [celebrate, setCelebrate] = useState(false);
+  const [activeN, setActiveN] = useState(1);
+  const [t, setT]       = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [tx, setTx]    = useState(-10);
+  const [ty, setTy]    = useState(5);
+  const [spinning, setSpinning] = useState(false);
+  const [hintK, setHintK] = useState(null);
+  const [diff, setDiff] = useState('EXPERT');
+  const [voiceOn, setVoiceOn]   = useState(false);
+  const [voiceOK, setVoiceOK]   = useState(false);
+  const [voiceTxt, setVoiceTxt] = useState('');
+  const [showCmds, setShowCmds] = useState(false);
+
+  const spinRef   = useRef(null);
+  const recRef    = useRef(null);
+  const voiceRef  = useRef(false);
+  const actRef    = useRef({});
+  const stRef     = useRef({});
+
+  stRef.current = { sel, board: board, puz, sol, done, paused };
+
+  function newGame(d) {
+    const difficulty = d || diff;
+    const { puz: p, sol: s } = makeGame(CLUES[difficulty] ?? 22);
+    setPuz(p); setSol(s);
+    setBoard(p.map(r=>[...r]));
+    setSel(null); setErrs(new Set()); setGood(new Set());
+    setDone(false); setCelebrate(false); setT(0); setPaused(false); setHintK(null);
+  }
+
+  function place(n) {
+    setBoard(prev => {
+      const { sel: s, puz: p, sol: so } = stRef.current;
+      if (!s || !prev || !p || !so) return prev;
+      const [r, c] = s;
+      if (p[r][c] !== 0) return prev;
+      const nb = prev.map(row => [...row]);
+      nb[r][c] = n;
+      const k = `${r}-${c}`;
+      if (n !== 0) {
+        if (so[r][c] !== n) { setErrs(e=>{const ne=new Set(e);ne.add(k);return ne;}); }
+        else { setErrs(e=>{const ne=new Set(e);ne.delete(k);return ne;}); setGood(g=>{const ng=new Set(g);ng.add(k);return ng;}); }
+      } else { setErrs(e=>{const ne=new Set(e);ne.delete(k);return ne;}); setGood(g=>{const ng=new Set(g);ng.delete(k);return ng;}); }
+      if (nb.every((row,ri)=>row.every((v,ci)=>v===so[ri][ci]))) { setDone(true); setTimeout(()=>setCelebrate(true),400); }
+      return nb;
+    });
+    if (n > 0) setActiveN(n);
+  }
+
+  function hint() {
+    const { board: b, sol: s } = stRef.current;
+    if (!b || !s) return;
+    const cells = [];
+    for (let r=0;r<9;r++) for (let c=0;c<9;c++) if (b[r][c]===0||errs.has(`${r}-${c}`)) cells.push([r,c]);
+    if (!cells.length) return;
+    const [r,c] = cells[Math.floor(Math.random()*cells.length)];
+    const k = `${r}-${c}`;
+    setHintK(k); setSel([r,c]);
+    setBoard(prev=>{const nb=prev.map(row=>[...row]);nb[r][c]=s[r][c];return nb;});
+    setErrs(e=>{const ne=new Set(e);ne.delete(k);return ne;});
+    setGood(g=>{const ng=new Set(g);ng.add(k);return ng;});
+    setTimeout(()=>setHintK(null),2000);
+  }
+
+  function nav(dr, dc) {
+    setSel(prev => {
+      if (!prev) return [0,0];
+      return [Math.max(0,Math.min(8,prev[0]+dr)), Math.max(0,Math.min(8,prev[1]+dc))];
+    });
+  }
+
+  function spin() {
+    if (spinning) return;
+    setSpinning(true);
+    let a = 0;
+    spinRef.current = setInterval(()=>{
+      a += 6;
+      setTx(Math.sin(a*Math.PI/180)*18);
+      setTy(Math.cos(a*Math.PI/180)*18);
+      if (a >= 360) { clearInterval(spinRef.current); setTx(-10); setTy(5); setSpinning(false); }
+    }, 16);
+  }
+
+  actRef.current = { place, hint, spin, nav, newGame, pause: ()=>setPaused(p=>!p) };
+
+  useEffect(()=>{ newGame(); }, []);
+
+  useEffect(()=>{
+    if (done||paused) return;
+    const id = setInterval(()=>setT(s=>s+1),1000);
+    return ()=>clearInterval(id);
+  },[done,paused]);
+
+  useEffect(()=>{
+    const mv = e => {
+      if (spinning) return;
+      const cx=window.innerWidth/2, cy=window.innerHeight/2;
+      setTx(-(e.clientY-cy)/cy*12);
+      setTy((e.clientX-cx)/cx*12);
+    };
+    window.addEventListener('mousemove', mv);
+    return ()=>window.removeEventListener('mousemove', mv);
+  },[spinning]);
+
+  useEffect(()=>{
+    const kb = e => {
+      const n=parseInt(e.key);
+      if (n>=1&&n<=9) { place(n); return; }
+      if (e.key==='Backspace'||e.key==='0'||e.key==='Delete') place(0);
+      if (e.key==='ArrowRight') nav(0,1);
+      if (e.key==='ArrowLeft')  nav(0,-1);
+      if (e.key==='ArrowDown')  nav(1,0);
+      if (e.key==='ArrowUp')    nav(-1,0);
+    };
+    window.addEventListener('keydown', kb);
+    return ()=>window.removeEventListener('keydown', kb);
+  },[]);
+
+  useEffect(()=>{
+    const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+    if (!SR) return;
+    setVoiceOK(true);
+    const r = new SR();
+    r.continuous = true; r.interimResults = false; r.lang = 'en-US';
+    r.onresult = e => {
+      const raw = Array.from(e.results).map(res=>res[0].transcript.toLowerCase().trim()).join(' ').trim();
+      if (!raw) return;
+      setVoiceTxt(raw);
+      setTimeout(()=>setVoiceTxt(''), 2500);
+      const NUMS = { one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,
+                     won:1,to:2,too:2,'for':4,fore:4,ate:8,nein:9 };
+      const dm = raw.match(/\b([1-9])\b/);
+      if (dm) { actRef.current.place(parseInt(dm[1])); return; }
+      for (const [w,n] of Object.entries(NUMS)) {
+        if (raw.includes(w)) { actRef.current.place(n); return; }
+      }
+      if (['erase','clear','delete','remove','blank','empty'].some(w=>raw.includes(w))) { actRef.current.place(0); return; }
+      if (raw.includes('hint'))  { actRef.current.hint(); return; }
+      if (raw.includes('spin')||raw.includes('rotate')) { actRef.current.spin(); return; }
+      if (raw.includes('new')||raw.includes('reset'))   { actRef.current.newGame(); return; }
+      if (raw.includes('pause')) { actRef.current.pause(); return; }
+      if (raw.includes(' up'))   { actRef.current.nav(-1,0); return; }
+      if (raw.includes('down'))  { actRef.current.nav(1,0); return; }
+      if (raw.includes('left'))  { actRef.current.nav(0,-1); return; }
+      if (raw.includes('right')) { actRef.current.nav(0,1); return; }
+    };
+    r.onend = ()=>{ if (voiceRef.current) { try{r.start();}catch(e){} } };
+    r.onerror = e=>{ if (e.error!=='no-speech') { setVoiceOn(false); voiceRef.current=false; } };
+    recRef.current = r;
+    return ()=>{ try{r.stop();}catch(e){} };
+  },[]);
+
+  function toggleVoice() {
+    if (!voiceOK) return;
+    if (voiceOn) { try{recRef.current?.stop();}catch(e){} setVoiceOn(false); voiceRef.current=false; }
+    else         { try{recRef.current?.start();}catch(e){} setVoiceOn(true);  voiceRef.current=true; }
+  }
+
+  const getHL = () => {
+    if (!sel||!board) return new Set();
+    const [sr,sc]=sel, h=new Set(), sn=board[sr][sc];
+    for (let i=0;i<9;i++) { h.add(`${i}-${sc}`); h.add(`${sr}-${i}`); }
+    const br=Math.floor(sr/3)*3, bc=Math.floor(sc/3)*3;
+    for (let r=br;r<br+3;r++) for (let c=bc;c<bc+3;c++) h.add(`${r}-${c}`);
+    if (sn!==0) for (let r=0;r<9;r++) for (let c=0;c<9;c++) if (board[r][c]===sn) h.add(`${r}-${c}`);
+    return h;
+  };
+  const HL = getHL();
+  const progress = board ? board.flat().filter(v=>v!==0).length : 0;
+  const fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+
+  if (!board) return (
+    <div style={{minHeight:'100vh',background:'#000',display:'flex',alignItems:'center',
+      justifyContent:'center',color:'#00f5ff',fontFamily:'monospace',fontSize:18}}>
+      INITIALIZING QUANTUM GRID…
+    </div>
+  );
+
+  return (
+    <div style={{
+      minHeight:'100vh',
+      background:'radial-gradient(ellipse at 30% 20%,#0a001a,#000208 55%,#020010)',
+      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+      fontFamily:'"Orbitron",monospace',overflow:'hidden',position:'relative',
+      userSelect:'none',padding:'16px 8px',
+    }}>
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap');
+        @keyframes drift { 0%{transform:translateY(0) translateX(0)} 100%{transform:translateY(-50px) translateX(25px)} }
+        @keyframes holo  { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+        @keyframes glow-pulse { 0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.04)} }
+        @keyframes scan-beam  { 0%{transform:translateY(-100vh)} 100%{transform:translateY(100vh)} }
+        @keyframes pop-in     { 0%{transform:scale(0) rotate(180deg);opacity:0} 65%{transform:scale(1.2) rotate(-8deg)} 100%{transform:scale(1) rotate(0);opacity:1} }
+        @keyframes err-flash  { 0%,100%{background:rgba(255,0,60,.2)} 50%{background:rgba(255,0,60,.45)} }
+        @keyframes hint-glow  { 0%,100%{box-shadow:0 0 10px #ffe600,0 0 30px #ffe600} 50%{box-shadow:0 0 30px #ffe600,0 0 80px #ffe600} }
+        @keyframes ring-cw    { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes ring-ccw   { from{transform:rotate(360deg)} to{transform:rotate(0deg)} }
+        @keyframes wave-bar   { 0%{height:4px} 100%{height:14px} }
+        @keyframes bubble-in  { 0%{transform:translateX(-50%) scale(0.8) translateY(10px);opacity:0} 100%{transform:translateX(-50%) scale(1) translateY(0);opacity:1} }
+        @keyframes confetti-fall { 0%{top:-20px;transform:rotate(0deg);opacity:1} 100%{top:110vh;transform:rotate(720deg);opacity:0} }
+        @keyframes mic-ring   { 0%,100%{transform:scale(1);opacity:.8} 50%{transform:scale(1.35);opacity:0} }
+        @keyframes victory    { 0%{transform:scale(1)} 50%{filter:brightness(1.8);transform:scale(1.04)} 100%{transform:scale(1)} }
+        .cell:hover:not(.prefilled)  { transform:scale(1.1); z-index:20; }
+        .num-btn:hover               { transform:translateY(-5px) scale(1.18) !important; }
+        .ctrl-btn:hover              { transform:scale(1.07) !important; filter:brightness(1.4) !important; }
+        ::-webkit-scrollbar          { width:0; }
+      `}</style>
+
+      <Particles/>
+      {celebrate && <Confetti/>}
+      <VoiceBubble text={voiceTxt} active={voiceOn}/>
+      <VoiceLegend visible={showCmds}/>
+
+      <div style={{position:'fixed',left:0,right:0,height:2,
+        background:'linear-gradient(90deg,transparent,#00f5ff 40%,#ff00e5 60%,transparent)',
+        animation:'scan-beam 5s linear infinite',pointerEvents:'none',zIndex:10,opacity:.35}}/>
+
+      <div style={{position:'fixed',inset:0,pointerEvents:'none',
+        backgroundImage:'linear-gradient(rgba(0,245,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,.04) 1px,transparent 1px)',
+        backgroundSize:'80px 80px'}}/>
+
+      <div style={{textAlign:'center',marginBottom:14,zIndex:5}}>
+        <div style={{fontSize:'clamp(9px,1.5vw,11px)',letterSpacing:'.6em',color:'#ff00e5',
+          textShadow:'0 0 20px #ff00e5',fontFamily:'Rajdhani',fontWeight:700,
+          animation:'glow-pulse 2s ease-in-out infinite'}}>⬡ DIMENSION-9 · NEURAL GRID ENGINE ⬡</div>
+        <div style={{fontSize:'clamp(28px,5.5vw,56px)',fontWeight:900,lineHeight:1,
+          background:'linear-gradient(135deg,#00f5ff 0%,#ff00e5 40%,#ffe600 70%,#00ff88 100%)',
+          backgroundSize:'400% 400%',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',
+          animation:'holo 4s ease infinite',letterSpacing:'.12em',marginTop:4}}>QUANTUM CAROUSEL</div>
+        <div style={{fontSize:'clamp(13px,2.2vw,20px)',fontWeight:900,color:'#fff',
+          letterSpacing:'.6em',textShadow:'0 0 30px #00f5ff,0 0 60px #ff00e5',marginTop:2}}>SUDOKU</div>
+      </div>
+
+      <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:12,flexWrap:'wrap',justifyContent:'center',zIndex:5}}>
+        <div style={{background:'rgba(0,0,10,.7)',border:'1px solid #00f5ff44',
+          borderRadius:8,padding:'6px 16px',color:'#00f5ff',
+          fontSize:'clamp(13px,1.8vw,18px)',fontWeight:700,
+          textShadow:'0 0 15px #00f5ff',letterSpacing:'.2em',
+          boxShadow:'0 0 20px #00f5ff22'}}>⏱ {fmt(t)}</div>
+
+        <div style={{background:'rgba(0,0,10,.6)',border:'1px solid #ffffff22',
+          borderRadius:8,padding:'6px 14px',
+          display:'flex',alignItems:'center',gap:8}}>
+          <div style={{width:70,height:4,background:'#ffffff11',borderRadius:2}}>
+            <div style={{width:`${(progress/81)*100}%`,height:'100%',
+              background:'linear-gradient(90deg,#00f5ff,#ff00e5)',
+              borderRadius:2,boxShadow:'0 0 8px #00f5ff',
+              transition:'width .4s cubic-bezier(0.34,1.56,0.64,1)'}}/>
+          </div>
+          <span style={{color:'#ffffff66',fontSize:11,fontFamily:'Rajdhani',fontWeight:600,letterSpacing:'.2em'}}>{progress}/81</span>
+        </div>
+
+        {['NOVICE','MEDIUM','HARD','EXPERT'].map(d=>(
+          <button key={d} onClick={()=>{setDiff(d);newGame(d);}} style={{
+            background:diff===d?'linear-gradient(135deg,rgba(0,245,255,.18),rgba(255,0,229,.1))':'transparent',
+            border:`1px solid ${diff===d?'#00f5ff':'#ffffff22'}`,
+            borderRadius:6,color:diff===d?'#00f5ff':'#ffffff44',
+            padding:'4px 9px',cursor:'pointer',fontFamily:'Orbitron',
+            fontSize:8,letterSpacing:'.15em',transition:'all .2s',
+            textShadow:diff===d?'0 0 10px #00f5ff':'none'}}>
+            {d}
+          </button>
+        ))}
+      </div>
+
+      <div style={{perspective:'1200px',perspectiveOrigin:'50% 50%',zIndex:5}}>
+        <div style={{
+          transform:`rotateX(${tx}deg) rotateY(${ty}deg)`,
+          transition:spinning?'none':'transform .08s ease-out',
+          transformStyle:'preserve-3d',
+          animation:done&&!celebrate?'victory .5s ease-in-out 2':'none',
+        }}>
+          <div style={{
+            background:'linear-gradient(135deg,#0a0a1f,#000510)',
+            borderRadius:14,padding:10,position:'relative',
+            boxShadow:'0 0 0 1px #00f5ff22,0 0 50px #00f5ff1a,0 0 120px #ff00e50d,0 30px 90px rgba(0,0,0,.85),inset 0 0 60px rgba(0,0,30,.5)',
+          }}>
+            {[[1,0,0,1],[1,1,0,0],[0,0,1,1],[0,1,1,0]].map(([t,r,b,l],i)=>(
+              <div key={i} style={{position:'absolute',width:22,height:22,
+                top:t?0:'auto',bottom:b?0:'auto',left:l?0:'auto',right:r?0:'auto',
+                borderTop:t?'2px solid #00f5ff':'none',borderBottom:b?'2px solid #ff00e5':'none',
+                borderLeft:l?'2px solid #00f5ff':'none',borderRight:r?'2px solid #ff00e5':'none',
+                zIndex:2}}/>
+            ))}
+
+            <div style={{display:'grid',gridTemplateColumns:'repeat(9,1fr)',gap:2}}>
+              {board.map((row,ri)=>row.map((cell,ci)=>{
+                const bx=box(ri,ci), z=Z[bx], k=`${ri}-${ci}`;
+                const isSel=sel?.[0]===ri&&sel?.[1]===ci;
+                const isPre=puz[ri][ci]!==0;
+                const isErr=errs.has(k), isOk=good.has(k), isHL=HL.has(k), isHint=hintK===k;
+                const bR=(ci+1)%3===0&&ci!==8, bB=(ri+1)%3===0&&ri!==8;
+
+                return (
+                  <div key={k}
+                    className={`cell${isPre?' prefilled':''}`}
+                    onClick={()=>setSel([ri,ci])}
+                    style={{
+                      width:'clamp(33px,5vw,50px)',height:'clamp(33px,5vw,50px)',
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      cursor:isPre?'default':'pointer',position:'relative',
+                      borderRight:bR?`2px solid ${z.h}55`:'1px solid #ffffff0a',
+                      borderBottom:bB?`2px solid ${z.h}55`:'1px solid #ffffff0a',
+                      borderRadius:4,
+                      background:isSel
+                        ?`linear-gradient(135deg,rgba(${z.r},.38),rgba(${z.r},.15))`
+                        :isErr?'rgba(255,0,60,.18)'
+                        :isHint?'rgba(255,230,0,.2)'
+                        :isHL?`rgba(${z.r},.09)`
+                        :`rgba(${z.r},.04)`,
+                      boxShadow:isSel?`0 0 22px rgba(${z.r},.55),inset 0 0 14px rgba(${z.r},.15)`
+                        :isOk?`inset 0 0 8px rgba(${z.r},.18)`:'none',
+                      animation:isErr?'err-flash .4s ease infinite':isHint?'hint-glow .5s ease infinite':'none',
+                      transition:'background .15s,box-shadow .15s,transform .15s',
+                    }}>
+
+                    {cell!==0&&(
+                      <span style={{
+                        fontSize:'clamp(13px,2vw,20px)',fontWeight:isPre?900:700,
+                        color:isErr?'#ff3355':isHint?'#ffe600':isPre?'#deeeff':z.h,
+                        textShadow:isErr?'0 0 12px #ff3355'
+                          :isHint?'0 0 20px #ffe600,0 0 45px #ffe600'
+                          :isPre?'0 0 8px rgba(255,255,255,.35)'
+                          :`0 0 18px ${z.h},0 0 35px rgba(${z.r},.4)`,
+                        animation:!isPre&&cell!==0?'pop-in .35s cubic-bezier(0.34,1.56,0.64,1)':'none',
+                      }}>{cell}</span>
+                    )}
+                    {isSel&&cell===0&&(
+                      <div style={{width:6,height:6,borderRadius:'50%',background:z.h,
+                        boxShadow:`0 0 12px ${z.h},0 0 24px ${z.h}`,
+                        animation:'glow-pulse .8s ease-in-out infinite'}}/>
+                    )}
+                  </div>
+                );
+              }))}
+            </div>
+
+            <div style={{display:'flex',gap:3,marginTop:8,justifyContent:'center'}}>
+              {Z.map((z,i)=>(
+                <div key={i} style={{flex:1,height:3,borderRadius:2,background:z.h,
+                  boxShadow:`0 0 6px ${z.h}`,opacity:.7}}/>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{marginTop:18,display:'flex',flexDirection:'column',alignItems:'center',gap:8,zIndex:5}}>
+        <div style={{fontSize:9,letterSpacing:'.5em',color:'#ffffff2a',fontFamily:'Rajdhani',fontWeight:700}}>
+          ◈ PLASMA NUMBER CAROUSEL ◈
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:5,
+          background:'linear-gradient(135deg,rgba(0,0,0,.6),rgba(0,10,30,.6))',
+          borderRadius:50,padding:'7px 12px',
+          border:'1px solid #ffffff11',
+          boxShadow:'0 0 40px rgba(0,0,0,.6),inset 0 0 20px rgba(0,0,30,.5)',
+          backdropFilter:'blur(10px)'}}>
+
+          <button className="num-btn" onClick={()=>place(0)} style={{
+            width:'clamp(30px,3.8vw,40px)',height:'clamp(30px,3.8vw,40px)',borderRadius:'50%',
+            background:'linear-gradient(135deg,rgba(255,30,60,.2),rgba(255,0,0,.1))',
+            border:'1px solid #ff3355',color:'#ff3355',fontSize:14,cursor:'pointer',
+            boxShadow:'0 0 15px rgba(255,51,85,.2)',transition:'all .2s',
+            display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'Orbitron'}}>⌫</button>
+
+          <div style={{width:1,height:28,background:'#ffffff11'}}/>
+
+          {[1,2,3,4,5,6,7,8,9].map(n=>{
+            const z=Z[n-1], active=activeN===n;
+            return (
+              <button key={n} className="num-btn" onClick={()=>{setActiveN(n);place(n);}} style={{
+                width:'clamp(30px,3.8vw,40px)',height:'clamp(30px,3.8vw,40px)',borderRadius:'50%',
+                background:active?`radial-gradient(circle,rgba(${z.r},.42),rgba(${z.r},.14))`:'transparent',
+                border:`${active?2:1}px solid ${active?z.h:z.h+'55'}`,
+                color:z.h,fontSize:'clamp(12px,1.7vw,16px)',fontWeight:900,cursor:'pointer',
+                textShadow:`0 0 ${active?22:8}px ${z.h}`,
+                boxShadow:active?`0 0 25px rgba(${z.r},.5),0 0 8px rgba(${z.r},.3)`:'none',
+                transition:'all .18s cubic-bezier(0.34,1.56,0.64,1)',
+                transform:active?'translateY(-4px) scale(1.18)':'scale(1)',
+                fontFamily:'Orbitron',
+              }}>{n}</button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{display:'flex',gap:8,marginTop:14,flexWrap:'wrap',justifyContent:'center',zIndex:5}}>
+        {[
+          {label:'⟳ NEW',   col:'#ff00e5', rgb:'255,0,229',  fn:()=>newGame()},
+          {label:'◉ SPIN',  col:'#ffe600', rgb:'255,230,0',  fn:spin},
+          {label:'⚡ HINT',  col:'#00ff88', rgb:'0,255,136',  fn:hint},
+          {label:paused?'▶ PLAY':'⏸ PAUSE', col:'#00aaff', rgb:'0,170,255', fn:()=>setPaused(p=>!p)},
+        ].map(({label,col,rgb,fn})=>(
+          <button key={label} className="ctrl-btn" onClick={fn} style={{
+            background:`linear-gradient(135deg,rgba(${rgb},.15),rgba(${rgb},.05))`,
+            border:`1px solid ${col}`,borderRadius:8,color:col,
+            padding:'clamp(5px,.8vw,8px) clamp(10px,1.8vw,18px)',
+            cursor:'pointer',fontFamily:'Orbitron',
+            fontSize:'clamp(8px,1.1vw,11px)',letterSpacing:'.15em',
+            textShadow:`0 0 10px ${col}`,boxShadow:`0 0 14px ${col}22`,transition:'all .2s'}}>
+            {label}
+          </button>
+        ))}
+
+        {voiceOK && (
+          <button className="ctrl-btn" onClick={toggleVoice} style={{
+            position:'relative',overflow:'visible',
+            background:voiceOn
+              ?'linear-gradient(135deg,rgba(0,245,255,.3),rgba(255,0,229,.2))'
+              :'linear-gradient(135deg,rgba(0,245,255,.1),rgba(0,245,255,.04))',
+            border:`${voiceOn?2:1}px solid ${voiceOn?'#00f5ff':'#00f5ff66'}`,
+            borderRadius:8,color:'#00f5ff',
+            padding:'clamp(5px,.8vw,8px) clamp(10px,1.8vw,18px)',
+            cursor:'pointer',fontFamily:'Orbitron',
+            fontSize:'clamp(8px,1.1vw,11px)',letterSpacing:'.15em',
+            textShadow:voiceOn?'0 0 20px #00f5ff':'0 0 8px #00f5ff',
+            boxShadow:voiceOn?'0 0 25px rgba(0,245,255,.4)':'0 0 14px rgba(0,245,255,.1)',
+            transition:'all .2s',display:'flex',alignItems:'center',gap:6}}>
+            {voiceOn && (
+              <div style={{position:'absolute',inset:-4,borderRadius:12,border:'2px solid #00f5ff44',
+                animation:'mic-ring 1.2s ease-out infinite'}}/>
+            )}
+            <span style={{fontSize:14}}>{voiceOn?'🎙':'🎤'}</span>
+            <span>{voiceOn?'LIVE':'VOICE'}</span>
+          </button>
+        )}
+
+        {voiceOK && (
+          <button className="ctrl-btn" onClick={()=>setShowCmds(s=>!s)} style={{
+            background:showCmds?'rgba(255,255,255,.1)':'transparent',
+            border:'1px solid #ffffff22',borderRadius:8,color:'#ffffff44',
+            padding:'clamp(5px,.8vw,8px) clamp(10px,1.8vw,18px)',
+            cursor:'pointer',fontFamily:'Orbitron',fontSize:'clamp(8px,1.1vw,11px)',
+            letterSpacing:'.1em',transition:'all .2s'}}>
+            ? CMDS
+          </button>
+        )}
+      </div>
+
+      <div style={{display:'flex',gap:5,marginTop:12,flexWrap:'wrap',justifyContent:'center',zIndex:5}}>
+        {Z.map((z,i)=>(
+          <div key={i} style={{display:'flex',alignItems:'center',gap:4,
+            background:`rgba(${z.r},.08)`,border:`1px solid ${z.h}44`,
+            borderRadius:20,padding:'3px 9px'}}>
+            <div style={{width:6,height:6,borderRadius:'50%',background:z.h,boxShadow:`0 0 6px ${z.h}`}}/>
+            <span style={{color:z.h,fontSize:7,letterSpacing:'.2em',fontFamily:'Rajdhani',fontWeight:700}}>{z.n}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{marginTop:12,fontSize:8,color:'#ffffff1a',letterSpacing:'.3em',fontFamily:'Rajdhani',zIndex:5}}>
+        {voiceOK?'KEYS 1-9 · ARROWS · BACKSPACE · 🎤 VOICE CONTROL':'KEYS 1-9 · ARROWS · BACKSPACE TO ERASE'}
+      </div>
+
+      {celebrate && (
+        <div style={{position:'fixed',inset:0,zIndex:300,display:'flex',
+          flexDirection:'column',alignItems:'center',justifyContent:'center',
+          background:'radial-gradient(ellipse,rgba(0,5,20,.96),rgba(0,0,5,.99))',
+          backdropFilter:'blur(20px)'}}>
+          {[140,200,260].map((sz,i)=>(
+            <div key={i} style={{position:'absolute',width:sz,height:sz,borderRadius:'50%',
+              border:`1px solid ${Z[i*3].h}`,boxShadow:`0 0 20px ${Z[i*3].h}44`,
+              animation:`${i%2===0?'ring-cw':'ring-ccw'} ${3+i}s linear infinite`}}/>
+          ))}
+          <div style={{fontSize:'clamp(28px,5.5vw,64px)',fontWeight:900,
+            background:'linear-gradient(135deg,#00f5ff,#ff00e5,#ffe600,#00ff88)',
+            backgroundSize:'400% 400%',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',
+            animation:'holo 1s ease infinite',textAlign:'center',letterSpacing:'.1em',
+            zIndex:1,marginBottom:12}}>QUANTUM SOLVED!</div>
+          <div style={{color:'#00f5ff',fontSize:'clamp(13px,1.8vw,18px)',letterSpacing:'.3em',zIndex:1,marginBottom:6}}>
+            TIME · {fmt(t)}
+          </div>
+          <div style={{color:'#ffffff33',fontSize:10,letterSpacing:'.4em',fontFamily:'Rajdhani',zIndex:1,marginBottom:26}}>
+            {diff} MODE · ALL 81 CELLS RESOLVED
+          </div>
+          <button className="ctrl-btn" onClick={()=>newGame()} style={{
+            background:'linear-gradient(135deg,rgba(0,245,255,.2),rgba(255,0,229,.2))',
+            border:'1px solid #00f5ff',color:'#00f5ff',padding:'12px 34px',cursor:'pointer',
+            fontFamily:'Orbitron',fontSize:13,letterSpacing:'.3em',borderRadius:10,
+            boxShadow:'0 0 40px rgba(0,245,255,.3)',transition:'all .2s',zIndex:1}}>
+            ⟳ NEW GAME
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(<QuantumSudokuV2 />);
+</script>
+</body>
+</html>
