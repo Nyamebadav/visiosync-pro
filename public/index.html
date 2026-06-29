@@ -127,6 +127,7 @@ const MOODS=['Triumphant','Romantic','Spiritual','Joyful','Intense','Nostalgic',
 const GENRES=['Afrobeats','Highlife','Hip-Hop','Gospel','Dancehall','R&B','Cinematic','Afropop'];
 const RATIOS=['16:9','9:16','1:1','4:5','3:2'];
 const CAPTION_STYLES=['Gold Glow','White Cinema','Neon Cyan','Afro Royal','Minimal'];
+const AI_PROVIDERS=[{id:'claude',label:'Claude AI (Anthropic)'},{id:'chatgpt',label:'ChatGPT (OpenAI)'},{id:'qwen',label:'Qwen (Alibaba)'},{id:'mimo',label:'MiMo (Xiaomi)'}];
 const TABS=[
   {id:'creator',label:'✦ Creator'},
   {id:'uploads',label:'＋ Add Music / Clips'},
@@ -148,15 +149,16 @@ function makeScenesFallback(topic,genre,mood){
   return [{title:'Opening sunrise hero shot',fx:'zoom'},{title:'Dancers enter — slow motion',fx:'cut'},{title:'Close-up emotional lyric moment',fx:'flash'},{title:'Golden city night performance',fx:'slide-left'},{title:'Abstract cosmic beat flash',fx:'glow'},{title:'Crowd celebration wide shot',fx:'blur-in'},{title:'AI dream portal transition',fx:'speed-ramp'},{title:'Final logo / title reveal',fx:'fade'}].map(s=>({...s,prompt:`${mood} ${genre} music video scene — ${s.title} — about "${topic||'a dream'}", ${palette}`,duration:4,imageUrl:''}));
 }
 
-// Call the Claude proxy on the server
-async function callClaude(proxy, type, topic, genre, mood){
-  const r = await fetch(`${proxy}/api/claude/generate`, {
+// Call the selected AI provider proxy
+async function callAI(proxy, provider, type, topic, genre, mood){
+  const ep={claude:'/api/claude/generate',chatgpt:'/api/openai/generate',qwen:'/api/qwen/generate',mimo:'/api/mimo/generate'}[provider]||'/api/claude/generate';
+  const r = await fetch(proxy+ep, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({type, topic, genre, mood}),
   });
   const data = await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(data.error || `Claude API error (HTTP ${r.status})`);
+  if(!r.ok) throw new Error(data.error || 'AI API error (HTTP '+r.status+')');
   return {text:data.content?.[0]?.text||data.text||'',usage:data.usage||null};
 }
 
@@ -178,6 +180,7 @@ function App(){
   const [status,setStatus]=useState('Ready');
   const [statusType,setStatusType]=useState('');
   const [generating,setGenerating]=useState(false);
+  const [aiProvider,setAiProvider]=useState('claude');
 
   // Image studio
   const proxy=typeof location!=='undefined'&&location.origin.startsWith('http')
@@ -451,6 +454,7 @@ function App(){
           <div className="grid" style={{marginTop:12}}>
             <div><label>Genre</label><select value={genre} onChange={e=>setGenre(e.target.value)}>{GENRES.map(x=><option key={x}>{x}</option>)}</select></div>
             <div><label>Mood</label><select value={mood} onChange={e=>setMood(e.target.value)}>{MOODS.map(x=><option key={x}>{x}</option>)}</select></div>
+            <div><label>AI Provider</label><select value={aiProvider} onChange={e=>setAiProvider(e.target.value)}>{AI_PROVIDERS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}</select></div>
           </div>
           <div className="btn-row">
             <button className="btn-gold" onClick={createAll} disabled={generating}>
