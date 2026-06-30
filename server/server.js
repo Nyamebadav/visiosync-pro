@@ -447,6 +447,6 @@ app.listen(port, "0.0.0.0", () => {
   console.log(`  ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? "Ã¢Åâ loaded" : "Ã¢Åâ MISSING"}`);
   console.log(`  XAI_API_KEY:       ${process.env.XAI_API_KEY ? "Ã¢Åâ loaded" : "Ã¢Åâ MISSING"}`);
   console.log(`  OPENAI_API_KEY:    ${process.env.OPENAI_API_KEY ? "Ã¢Åâ loaded" : "- not set (optional)"}`);
-  console.log(`  QWEN_API_KEY:      ${process.env-QWEN_API_KEY ? "Ã¢Åâ loaded" : "- not set (optional)"}`);
+  console.log(`  QWEN_API_KEY:      ${process.env.QWEN_API_KEY ? "Ã¢Åâ loaded" : "- not set (optional)"}`);
   console.log(`  HF_API_KEY:        ${process.env.HF_API_KEY ? "Ã¢Åâ loaded" : "- not set (optional)"}\n`);
 });
