@@ -275,6 +275,14 @@ app.get("/", (_req, res) => {
 app.get("/app", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
+app.get('/checkers', (req, res) => res.sendFile(path.join(publicDir, 'checkers.html')));
+app.get('/sudoku', (req, res) => res.sendFile(path.join(publicDir, 'sudoku.html')));
+app.get('/quantum-sudoku', (req, res) => res.sendFile(path.join(publicDir, 'quantum-sudoku.html')));
+app.get('/cosmic-brick-breaker', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_brick_breaker.html')));
+app.get('/cosmic-checkers', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_checkers.html')));
+app.get('/cosmic-pinball', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_pinball.html')));
+app.get('/cosmic-sudoku', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_sudoku.html')));
+
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
@@ -432,13 +440,6 @@ app.post("/api/mimo/generate", rateLimit, async (req, res) => {
 
 // Ã¢ââ¬Ã¢ââ¬ Start server Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
 
-app.get('/checkers', (req, res) => res.sendFile(path.join(publicDir, 'checkers.html')));
-app.get('/sudoku', (req, res) => res.sendFile(path.join(publicDir, 'sudoku.html')));
-app.get('/quantum-sudoku', (req, res) => res.sendFile(path.join(publicDir, 'quantum-sudoku.html')));
-app.get('/cosmic-brick-breaker', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_brick_breaker.html')));
-app.get('/cosmic-checkers', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_checkers.html')));
-app.get('/cosmic-pinball', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_pinball.html')));
-app.get('/cosmic-sudoku', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_sudoku.html')));
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`\nÃ¢ÅÂ¦ VisioSync Pro running on http://0.0.0.0:${port}`);
