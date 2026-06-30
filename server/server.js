@@ -275,13 +275,13 @@ app.get("/", (_req, res) => {
 app.get("/app", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
-app.get('/checkers', (req, res) => res.sendFile(path.join(publicDir, 'checkers.html')));
-app.get('/sudoku', (req, res) => res.sendFile(path.join(publicDir, 'sudoku.html')));
-app.get('/quantum-sudoku', (req, res) => res.sendFile(path.join(publicDir, 'quantum-sudoku.html')));
-app.get('/cosmic-brick-breaker', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_brick_breaker.html')));
-app.get('/cosmic-checkers', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_checkers.html')));
-app.get('/cosmic-pinball', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_pinball.html')));
-app.get('/cosmic-sudoku', (req, res) => res.sendFile(path.join(publicDir, 'cosmic_sudoku.html')));
+app.get('/checkers', (req, res) => res.sendFile(path.join(__dirname, '../public', 'checkers.html')));
+app.get('/sudoku', (req, res) => res.sendFile(path.join(__dirname, '../public', 'sudoku.html')));
+app.get('/quantum-sudoku', (req, res) => res.sendFile(path.join(__dirname, '../public', 'quantum-sudoku.html')));
+app.get('/cosmic-brick-breaker', (req, res) => res.sendFile(path.join(__dirname, '../public', 'cosmic_brick_breaker.html')));
+app.get('/cosmic-checkers', (req, res) => res.sendFile(path.join(__dirname, '../public', 'cosmic_checkers.html')));
+app.get('/cosmic-pinball', (req, res) => res.sendFile(path.join(__dirname, '../public', 'cosmic_pinball.html')));
+app.get('/cosmic-sudoku', (req, res) => res.sendFile(path.join(__dirname, '../public', 'cosmic_sudoku.html')));
 
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
